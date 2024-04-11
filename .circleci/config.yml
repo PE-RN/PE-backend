@@ -68,7 +68,7 @@ workflows:
             #branches:
             #  ignore: /.*/
             #tags:
-              ignore: /.*/
+            # ignore: /.*/
       #- deploy:
       #    requires:
       #      - build
