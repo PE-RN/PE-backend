@@ -1,0 +1,79 @@
+version: 2.1
+
+jobs:
+  build:
+    docker:
+      - image: circleci/python:3.11
+
+    working_directory: ~/atlaseolica-back-end
+
+    steps:
+      - checkout
+
+      # Instalação de dependências
+      - run:
+          name: Install Dependencies
+          command: |
+            python -m pip install --upgrade pip
+            pip install -r requirements.txt
+
+      # Execução dos testes
+      - run:
+          name: Run Tests
+          command: |
+            pytest tests/
+      
+      # Execução de lint
+      - run:
+          name: Run Lint
+          command: |
+            flake8 .
+      
+      # Execução do Bandit para análise de segurança
+      - run:
+          name: Run Bandit
+          command: |
+            bandit -r . || (echo 'Bandit found issues!' && false)
+  .
+      
+
+  deploy:
+    docker:
+      - image: circleci/python:3.8
+
+    working_directory: ~/atlaseolica-back-end
+
+    steps:
+      - checkout
+
+      # Instalação de dependências
+      - run:
+          name: Install Dependencies
+          command: |
+            python -m pip install --upgrade pip
+            pip install -r requirements.txt
+
+      # Realizar deploy (substitua pelo seu script de deploy)
+      - run:
+          name: Deploy
+          command: |
+            echo "Deploying..."
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - build:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              ignore: /.*/
+      #- deploy:
+      #    requires:
+      #      - build
+      #    filters:
+      #      branches:
+      #        ignore: /.*/
+      #      tags:
+      #        ignore: /.*/
