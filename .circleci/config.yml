@@ -63,9 +63,8 @@ workflows:
     jobs:
       - build:
         -  when: # only execute when triggered by the api
-            equal: 
-              - << pipeline.trigger_source >>,
-              - api
+            condition:
+              equal: [<< pipeline.trigger_source >>,api]
             #filters:
             #branches:
             #  ignore: /.*/
