@@ -3,16 +3,20 @@ version: 2.1
 jobs:
   build:
     docker:
-      - image: circleci/python:3.11
+      - image: cimg/python:3.11
 
     working_directory: ~/atlaseolica-back-end
-
+    
     steps:
-      - checkout
       - when: # only execute when triggered by the api
           condition:
-            equal: [<< pipeline.trigger_source >>, api]
-
+            not:     
+              equal: [<< pipeline.trigger_source >>, api]
+          steps:
+            - run:
+                name: Exit Pipeline
+                command: exit 1
+      - checkout
       # Instalação de dependências
       - run:
           name: Install Dependencies
