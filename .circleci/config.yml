@@ -5,17 +5,9 @@ jobs:
     docker:
       - image: cimg/python:3.11
 
-    working_directory: ~/atlaseolica-back-end
+    working_directory: ~/
     
     steps:
-      - when: # only execute when triggered by the api
-          condition:
-            not:     
-              equal: [<< pipeline.trigger_source >>, api]
-          steps:
-            - run:
-                name: Exit Pipeline
-                command: exit 0
       - checkout
       # Instalação de dependências
       - run:
@@ -28,7 +20,7 @@ jobs:
       - run:
           name: Run Tests
           command: |
-            pytest .
+            pytest test/
       
       # Execução de lint
       - run:
