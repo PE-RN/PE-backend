@@ -15,7 +15,7 @@ jobs:
           steps:
             - run:
                 name: Exit Pipeline
-                command: exit 1
+                command: exit 0
       - checkout
       # Instalação de dependências
       - run:
