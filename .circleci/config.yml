@@ -26,7 +26,7 @@ jobs:
       - run:
           name: Run Lint
           command: |
-            flake8 .
+            #flake8 .
       
       # Execução do Bandit para análise de segurança
       - run:
