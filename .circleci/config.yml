@@ -9,6 +9,9 @@ jobs:
 
     steps:
       - checkout
+      - when: # only execute when triggered by the api
+          condition:
+            equal: [<< pipeline.trigger_source >>, api]
 
       # Instalação de dependências
       - run:
@@ -35,46 +38,7 @@ jobs:
           command: |
             bandit -r . || (echo "Bandit found issues!"" && false)
 
-  deploy:
-    docker:
-      - image: circleci/python:3.8
-
-    working_directory: ~/atlaseolica-back-end
-
-    steps:
-      - checkout
-      -  when: # only execute when triggered by the api
-          condition:
-            equal: [<< pipeline.trigger_source >>, api]
-
-      # Instalação de dependências
-      - run:
-          name: Install Dependencies
-          command: |
-            python -m pip install --upgrade pip
-            pip install -r requirements.txt
-
-      # Realizar deploy (substitua pelo seu script de deploy)
-      - run:
-          name: Deploy
-          command: |
-            echo "Deploying..."
-
-
-          #filters:
-          #branches:
-          #  ignore: /.*/
-          #tags:
-          # ignore: /.*/
-    #- deploy:
-    #    requires:
-    #      - build
-    #    filters:
-    #      branches:
-    #        ignore: /.*/
-    #      tags:
-    #        ignore: /.*/
-
+  
 workflows:
   my_workflows:
     jobs:
