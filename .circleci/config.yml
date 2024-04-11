@@ -28,7 +28,7 @@ jobs:
       - run:
           name: Run Tests
           command: |
-            pytest tests/
+            pytest test/
       
       # Execução de lint
       - run:
