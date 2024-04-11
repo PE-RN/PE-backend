@@ -34,7 +34,7 @@ jobs:
           name: Run Bandit
           command: |
             bandit -r . || (echo "Bandit found issues!"" && false)
-            
+
   deploy:
     docker:
       - image: circleci/python:3.8
@@ -62,10 +62,12 @@ workflows:
   build:
     jobs:
       - build:
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
+          when: # only execute when triggered by the api
+            equal: [<< pipeline.trigger_source >>, api]
+            #filters:
+            #branches:
+            #  ignore: /.*/
+            #tags:
               ignore: /.*/
       #- deploy:
       #    requires:
