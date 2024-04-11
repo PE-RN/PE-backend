@@ -1,34 +1,79 @@
-# This config was automatically generated from your source code
-# Stacks detected: deps:python:.
 version: 2.1
-orbs:
-  python: circleci/python@2
+
 jobs:
-  test-python:
-    # Install dependencies and run tests
+  build:
     docker:
-      - image: cimg/python:3.8-node
+      - image: circleci/python:3.11
+
+    working_directory: ~/atlaseolica-back-end
+
     steps:
       - checkout
-      - python/install-packages
+
+      # Instalação de dependências
       - run:
-          name: Run tests
-          command: pytest --junitxml=junit.xml || ((($? == 5)) && echo 'Did not find any tests to run.')
-      - store_test_results:
-          path: junit.xml
+          name: Install Dependencies
+          command: |
+            python -m pip install --upgrade pip
+            pip install -r requirements.txt
+
+      # Execução dos testes
+      - run:
+          name: Run Tests
+          command: |
+            pytest tests/
+      
+      # Execução de lint
+      - run:
+          name: Run Lint
+          command: |
+            flake8 .
+      
+      # Execução do Bandit para análise de segurança
+      - run:
+          name: Run Bandit
+          command: |
+            bandit -r . || (echo 'Bandit found issues!' && false)
+  .
+      
+
   deploy:
-    # This is an example deploy job, not actually used by the workflow
     docker:
-      - image: cimg/base:stable
+      - image: circleci/python:3.8
+
+    working_directory: ~/atlaseolica-back-end
+
     steps:
-      # Replace this with steps to deploy to users
+      - checkout
+
+      # Instalação de dependências
       - run:
-          name: deploy
-          command: '#e.g. ./deploy.sh'
+          name: Install Dependencies
+          command: |
+            python -m pip install --upgrade pip
+            pip install -r requirements.txt
+
+      # Realizar deploy (substitua pelo seu script de deploy)
+      - run:
+          name: Deploy
+          command: |
+            echo "Deploying..."
+
 workflows:
-  build-and-test:
+  version: 2
+  build:
     jobs:
-      - test-python
-    # - deploy:
-    #     requires:
-    #       - test-python
+      - build:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              ignore: /.*/
+      #- deploy:
+      #    requires:
+      #      - build
+      #    filters:
+      #      branches:
+      #        ignore: /.*/
+      #      tags:
+      #        ignore: /.*/
