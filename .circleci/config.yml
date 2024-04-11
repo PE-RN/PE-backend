@@ -5,7 +5,7 @@ jobs:
     docker:
       - image: cimg/python:3.11
 
-    working_directory: ~/
+    working_directory: ~/atlaseolica-back-end
     
     steps:
       - checkout
