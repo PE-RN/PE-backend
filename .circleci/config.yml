@@ -34,9 +34,7 @@ jobs:
           name: Run Bandit
           command: |
             bandit -r . || (echo "Bandit found issues!"" && false)
-  .
-      
-
+            
   deploy:
     docker:
       - image: circleci/python:3.8
