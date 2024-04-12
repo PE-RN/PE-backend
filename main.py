@@ -28,6 +28,7 @@ if not os.getenv('SENTRY_ENVIRONMENT', 'local') == 'local':
 
 models.Base.metadata.create_all(bind=engine)
 
+if not os.getenv('SENTRY_ENVIRONMENT','local') == 'local':
 
 # Dependency
 def get_db():
@@ -38,6 +39,7 @@ def get_db():
         db.close()
 
 
+    
 app = FastAPI()
 
 app.add_middleware(
