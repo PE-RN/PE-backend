@@ -1,0 +1,17 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [ -73.981934, 40.768081 ]
+        },
+        "properties": {
+          "name": "Central Park",
+          "description": "Famoso parque em Nova Iorque"
+        }
+      },
+    ]
+}
+  
