@@ -1,11 +1,10 @@
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime
-from sqlalchemy.orm import relationship
 from .database import Base
 from datetime import datetime
 
 
 class User(Base):
-    
+
     __tablename__ = "Users"
 
     id = Column(Integer, primary_key=True)
@@ -36,9 +35,10 @@ class LogsEmail(Base):
     created_at = Column(DateTime, default=datetime.datetime)
     updated_at = Column(DateTime, default=datetime.datetime, onupdate=datetime.datetime)
     deleted_at = Column(DateTime, default=None, onupdate=datetime.datetime)
-  
+
+
 class PdfFile(Base):
-    
+
     __tablename__ = "PDF_Files"
 
     id = Column(Integer, primary_key=True)
@@ -49,8 +49,9 @@ class PdfFile(Base):
     path = Column(String)
     category = Column(String)
 
+
 class Video(Base):
-    
+
     __tablename__ = "Videos"
 
     id = Column(Integer, primary_key=True)
@@ -63,7 +64,7 @@ class Video(Base):
 
 
 class Geodata(Base):
-    
+
     __tablename__ = "Geodata"
 
     id = Column(Integer, primary_key=True)
@@ -77,13 +78,3 @@ class Geodata(Base):
     description = Column(String)
     origin_name = Column(String)
     url_acess = Column(String)
-
-  
-    
-
-
-
-
-
-
-    

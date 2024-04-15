@@ -1,4 +1,3 @@
-import sys
 import json
 from osgeo import gdal, ogr, osr
 import numpy as np
@@ -6,7 +5,7 @@ from models.feature import FeatureModel
 
 
 async def clip_and_get_pixel_values(features: list[FeatureModel], input_tiff_path):
-    
+
     # Load the source raster
     src_ds = gdal.Open(input_tiff_path)
     if not src_ds:
@@ -15,9 +14,9 @@ async def clip_and_get_pixel_values(features: list[FeatureModel], input_tiff_pat
     srcband = src_ds.GetRasterBand(1)
 
     pixel_values_list = []
-    
+
     for feature in features:
-        geometry  = json.dumps(feature.geometry.model_dump())
+        geometry = json.dumps(feature.geometry.model_dump())
         # Convert GeoJSON to an OGR geometry
         geom = ogr.CreateGeometryFromJson(geometry)
         # Prepare an in-memory raster for the mask
@@ -52,9 +51,8 @@ async def clip_and_get_pixel_values(features: list[FeatureModel], input_tiff_pat
         pixel_values_sorted_desc = sorted(pixel_values, reverse=True)
         pixel_values_list.append(pixel_values_sorted_desc)
 
-    
-    return [{'type': 'FeatureCollection','features': [], 'properties': { 'pixelValues': values}} for values in pixel_values_list]
-    
+    return [{'type': 'FeatureCollection', 'features': [], 'properties': {'pixelValues': values}} for values in pixel_values_list]
+
 
 """ if __name__ == "__main__":
     geojson_file_path = sys.argv[1]
