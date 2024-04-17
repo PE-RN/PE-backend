@@ -14,6 +14,7 @@ async def clip_and_get_pixel_values(features: list[FeatureModel], input_tiff_pat
     srcband = src_ds.GetRasterBand(1)
 
     pixel_values_list = []
+    feature_names = []
 
     for feature in features:
         geometry = json.dumps(feature.geometry.model_dump())
@@ -51,16 +52,16 @@ async def clip_and_get_pixel_values(features: list[FeatureModel], input_tiff_pat
         pixel_values_sorted_desc = sorted(pixel_values, reverse=True)
         pixel_values_list.append(pixel_values_sorted_desc)
 
-    return [{'type': 'FeatureCollection', 'features': [], 'properties': {'pixelValues': values}} for values in pixel_values_list]
+        # Append the feature name
+        feature_names.append(feature.properties.name)
 
-
-""" if __name__ == "__main__":
-    geojson_file_path = sys.argv[1]
-    input_tiff_path = sys.argv[2]
-
-    with open(geojson_file_path, 'r') as file:
-        geojson_input = json.load(file)['geometry']
-
-    result = clip_and_get_pixel_values(geojson_input, input_tiff_path)
-    print(json.dumps(result))
- """
+    return [
+        {
+            'type': 'ResponseData',
+            'properties': {
+                'pixelValues': values,
+                'name': name
+            }
+        }
+        for values, name in zip(pixel_values_list, feature_names)
+    ]

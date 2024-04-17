@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Response, status
+from fastapi.middleware.cors import CORSMiddleware
 from models.geojson import GeoJSONModel
 from scripts.hydrogen_costs import hydrogen_costs
 from scripts.geo_processing import clip_and_get_pixel_values
@@ -21,6 +22,14 @@ if not os.getenv('SENTRY_ENVIRONMENT', 'local') == 'local':
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:8000"],  # Allows only requests from localhost:8000
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
+
 
 @app.post("/process/geo-processing")
 async def post_process_geo_processing(geoJSON: GeoJSONModel, response: Response):
@@ -31,7 +40,7 @@ async def post_process_geo_processing(geoJSON: GeoJSONModel, response: Response)
         if not (feature.geometry.type in {"Polygon", "MultiPolygon"}):
             response.status_code = status.HTTP_400_BAD_REQUEST
             return {"Bad Request": "Type of geometry not supported"}
-        if len(feature.geometry.coordinates[0]) < 4:
+        if (feature.geometry.type == 'Polygon' and len(feature.geometry.coordinates[0]) < 4):
             response.status_code = status.HTTP_400_BAD_REQUEST
             return {"Bad Request": "Incorrect number of coordinates"}
         if feature.geometry.type == 'Polygon' and feature.geometry.coordinates[0][-1] != feature.geometry.coordinates[0][0]:
