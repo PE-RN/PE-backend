@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
 
-class GeometryModel(BaseModel):
+class Geometry(BaseModel):
     type: str
     coordinates: list
