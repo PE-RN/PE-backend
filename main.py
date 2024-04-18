@@ -1,10 +1,16 @@
-from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
-from models.geojson import GeoJSONModel
+from fastapi import FastAPI, Response, Depends
+from schemas.geojson import GeoJSON
 from scripts.hydrogen_costs import hydrogen_costs
-from scripts.geo_processing import clip_and_get_pixel_values
+from sqlalchemy.orm import Session
 import sentry_sdk
 import os
+from sql_app import models
+from sql_app.database import engine, SessionLocal
+from schemas.user import UserCreate, User
+from controllers.user_controller import UserController
+from repositories.user_repository import UserRepository
+from controllers.process_controller import ProcessController
 
 if not os.getenv('SENTRY_ENVIRONMENT', 'local') == 'local':
 
@@ -20,6 +26,18 @@ if not os.getenv('SENTRY_ENVIRONMENT', 'local') == 'local':
         profiles_sample_rate=1.0,
     )
 
+models.Base.metadata.create_all(bind=engine)
+
+
+# Dependency
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
 app = FastAPI()
 
 app.add_middleware(
@@ -31,23 +49,16 @@ app.add_middleware(
 )
 
 
-@app.post("/process/geo-processing")
-async def post_process_geo_processing(geoJSON: GeoJSONModel, response: Response):
-    tiff_name = "VELOCIDADE_150M.tif"
-    actual_path = os.getcwd()
-    path_tiff = actual_path + '/scripts/data/' + tiff_name
-    for feature in geoJSON.features:
-        if not (feature.geometry.type in {"Polygon", "MultiPolygon"}):
-            response.status_code = status.HTTP_400_BAD_REQUEST
-            return {"Bad Request": "Type of geometry not supported"}
-        if (feature.geometry.type == 'Polygon' and len(feature.geometry.coordinates[0]) < 4):
-            response.status_code = status.HTTP_400_BAD_REQUEST
-            return {"Bad Request": "Incorrect number of coordinates"}
-        if feature.geometry.type == 'Polygon' and feature.geometry.coordinates[0][-1] != feature.geometry.coordinates[0][0]:
-            response.status_code = status.HTTP_400_BAD_REQUEST
-            return {"Bad Request": "Incorrect coordinates in Polygon"}
+@app.post("/users", response_model=User)
+async def post_users(user: UserCreate, db: Session = Depends(get_db)):
+    controller = UserController(repository=UserRepository(db=db))
+    return controller.create_user(user)
 
-    return await clip_and_get_pixel_values(geoJSON.features, path_tiff)
+
+@app.post("/process/geo-processing")
+async def post_process_geo_processing(geoJSON: GeoJSON, response: Response):
+    controller = ProcessController()
+    return await controller.process_geo_process(geoJSON, response)
 
 
 @app.get("/sentry-debug")
@@ -57,5 +68,5 @@ async def trigger_error():
 
 
 @app.post("/process/hydrogen-costs")
-async def post_hydrogen_process_costs(geojson: GeoJSONModel):
+async def post_hydrogen_process_costs(geojson: GeoJSON):
     return await hydrogen_costs(geoJSON=geojson)

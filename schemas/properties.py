@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
 
-class PropertiesModel(BaseModel):
+class Properties(BaseModel):
     name: str | None = None
     description: str | None = None
