@@ -43,10 +43,23 @@ pip freeze | findstr /v "file:///" > requirements.txt"
 <h5 style="color: yellow;"> Isso joga todos os pacotes e suas versões usadas atraves do "pip freeze" num arquivo txt usando o operador de alteração de saída ">"
 e eliminano dessa inserção todos os pacotes com path "file:///" que são os default da env do miniconda. </h5>
 
-<h4 style="color: yellow;"> Não realizar commit's diretos nas branch's de development,main sempre realizar um Pull Request seguindo seguinte padrão:<br/><br/>
-    - Branch's de task's de melhorias do jira PE-2845-feature sendo 2845 o número da task do jira.<br/><br/>
-    - Brach's de task's de correção de erro do jira PE-2845-bugfix sendo 2845 o número da task do jira.<br/><br/>
-    - Padrão de commit: PE-2314: Realizar configuração de modelo onde 2314 é o número da branch atual e apos o : colocar um verbo no infinitivo + resto da mensagem
+<h4 style="color: yellow;"> Não realizar commit's diretos nas branch's de release e main. Sempre realizar um Pull Request seguindo seguinte padrão:<br/><br/>
+Criação de branchs<br/><br>
+    - Branch's devem ser criadas pela ferramenta de criação no jira<br/><br/>
+    - Toda branch deve ser criada a partir da release atual<br/><br/>
+    - O nome da branch deve seguir o padrão da criação pelo jira IdTask-Nome-Task<br/><br/>
+Commits em branchs<br/><br>
+    - Deve seguir o padrão "tipo(participante): commit message"<br/><br/>
+Merge em release e main<br/><br>
+    - Apenas as releases podem ser mergeadas dentro da main<br/><br/>
+    - Branchs de desenvolvimento devem ser mergeadas na release<br/><br/>
+    - Antes de mergear uma branch na release faça o rebase com o commit mais recente da release<br/><br/>
+    - Sempre enviar a tarefa para review após abrir o pull request na release<br/><br/>
+    - É necessário um approve de outro dev para realizar o merge<br/><br/>
+    - Para mergear selecione a opção de squash and merge<br/><br/>
+    - Delete a branch após mergear o código<br/><br/>
+    - No final da sprint a release será mergeada na main<br/><br/>
+
 
 
 </h4>
