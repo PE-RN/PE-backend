@@ -16,7 +16,7 @@ class ProcessController:
             if not (feature.geometry.type in {"Polygon", "MultiPolygon"}):
                 has_error = True
                 error_response = {"Bad Request": "Type of geometry not supported"}
-            if len(feature.geometry.coordinates[0]) < 4:
+            if (feature.geometry.type == 'Polygon' and len(feature.geometry.coordinates[0]) < 4):
                 has_error = True
                 error_response = {"Bad Request": "Incorrect number of coordinates"}
             if feature.geometry.type == 'Polygon' and feature.geometry.coordinates[0][-1] != feature.geometry.coordinates[0][0]:
