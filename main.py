@@ -61,6 +61,12 @@ async def post_process_geo_processing(geoJSON: GeoJSON, response: Response):
     return await controller.process_geo_process(geoJSON, response)
 
 
+@app.get("/process/raster/{raster_name}")
+async def post_process_raster(raster_name: str):
+    controller = ProcessController()
+    return await controller.process_raster(raster_name)
+
+
 @app.get("/sentry-debug")
 async def trigger_error():
     division_by_zero = 1/0
