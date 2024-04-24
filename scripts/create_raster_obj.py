@@ -1,7 +1,6 @@
 from osgeo import gdal
 import numpy as np
 
-
 async def read_raster_as_json(input_tiff_path):
     # Open the raster file
     ds = gdal.Open(input_tiff_path)
@@ -19,9 +18,9 @@ async def read_raster_as_json(input_tiff_path):
     x_size, y_size = band.XSize, band.YSize
     x_index, y_index = np.meshgrid(np.arange(x_size), np.arange(y_size))
 
-    # Calculate the center of each pixel
-    lons = transform[0] + (x_index + 0.5) * transform[1] + (y_index + 0.5) * transform[2]
-    lats = transform[3] + (x_index + 0.5) * transform[4] + (y_index + 0.5) * transform[5]
+    # Calculate the geographic coordinates of the center of each pixel
+    lons = transform[0] + (x_index + 0.5) * transform[1]
+    lats = transform[3] + (y_index + 0.5) * transform[5]
 
     # Flatten arrays
     lons = lons.flatten()
@@ -34,7 +33,23 @@ async def read_raster_as_json(input_tiff_path):
     lats = lats[valid_mask]
     values = values[valid_mask]
 
-    # Round the coordinates and values, and create dictionary
-    data_dict = {f"{lon:.5f} {lat:.5f}": round(float(val), 2) for lon, lat, val in zip(lons, lats, values)}
+    # Use the first valid pixel's coordinates as the origin
+    origin = {
+        'lat': transform[3],
+        'lng': transform[0]
+    }
 
-    return data_dict
+    # Assuming pixel size from transform
+    pixel_size = {
+        'lat': -transform[5],  # Usually negative
+        'lng': -transform[1]
+    }
+
+    # Round the coordinates and values, and create dictionary
+    data_dict = {f"{lat:.5f} {lon:.5f}": round(float(val), 2) for lat, lon, val in zip(lats, lons, values)}
+
+    return {
+        'data': data_dict,
+        'origin': origin,
+        'pixel_size': pixel_size
+    }
