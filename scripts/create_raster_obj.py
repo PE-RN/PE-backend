@@ -1,6 +1,7 @@
 from osgeo import gdal
 import numpy as np
 
+
 async def read_raster_as_json(input_tiff_path):
     # Open the raster file
     ds = gdal.Open(input_tiff_path)
