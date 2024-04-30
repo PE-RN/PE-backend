@@ -84,3 +84,4 @@ class Geodata(Base):
     description = Column(String)
     origin_name = Column(String)
     url_acess = Column(String)
+    package = Column(String)

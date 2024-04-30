@@ -10,7 +10,9 @@ from sql_app.database import engine, SessionLocal
 from schemas.user import UserCreate, User
 from controllers.user_controller import UserController
 from repositories.user_repository import UserRepository
+from repositories.geo_repository import GeoRepository
 from controllers.process_controller import ProcessController
+from controllers.geo_files_controller import GeoFilesController
 
 if not os.getenv('SENTRY_ENVIRONMENT', 'local') == 'local':
 
@@ -76,3 +78,9 @@ async def trigger_error():
 @app.post("/process/hydrogen-costs")
 async def post_hydrogen_process_costs(geojson: GeoJSON):
     return await hydrogen_costs(geoJSON=geojson)
+
+
+@app.get("/geofiles/polygon/{table_name}")
+async def get_geofiles_polygon(table_name: str, db: Session = Depends(get_db)):
+    controller = GeoFilesController(repository=GeoRepository(db=db))
+    return await controller.get_polygon(table_name=table_name)
