@@ -34,7 +34,7 @@ class GeoRepository:
         if_exists_option = 'append' if increment else 'replace'
         polygon.to_postgis(table_name, engine, if_exists=if_exists_option)
 
-    def upload_raster(
+    async def upload_raster(
         self,
         raster_path: str,
         table_name: str,
