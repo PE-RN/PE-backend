@@ -128,3 +128,14 @@ async def post_process_raster(
     controller: Annotated[ProcessController, Depends(ProcessController.inject_controller)]
 ):
     return await controller.process_raster(raster_name)
+
+
+@app.get("/sentry-debug")
+async def trigger_error():
+    division_by_zero = 1/0
+    return division_by_zero
+
+
+@app.post("/process/hydrogen-costs")
+async def post_hydrogen_process_costs(geojson: GeoJSON):
+    return await hydrogen_costs(geoJSON=geojson)
