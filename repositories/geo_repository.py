@@ -70,5 +70,5 @@ class GeoRepository:
 
     async def get_polygon(self, table_name) -> GeoJSON:
 
-        polygon = geopandas.read_postgis(f'select * from "{table_name}"', geom_col='geometry', con=self.db.bind)
+        polygon = geopandas.read_postgis(f'select * from {table_name}', geom_col='geometry', con=self.db.bind)
         return polygon.to_json()

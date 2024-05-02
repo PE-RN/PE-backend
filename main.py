@@ -132,10 +132,16 @@ async def post_process_raster(
 
 @app.get("/sentry-debug")
 async def trigger_error():
-    division_by_zero = 1/0
+    division_by_zero = 1 / 0
     return division_by_zero
 
 
 @app.post("/process/hydrogen-costs")
 async def post_hydrogen_process_costs(geojson: GeoJSON):
     return await hydrogen_costs(geoJSON=geojson)
+
+
+@app.get("/geofiles/polygon/{table_name}")
+async def get_geofiles_polygon(table_name: str, response: Response, db: Session = Depends(get_db)):
+    controller = GeoFilesController(repository=GeoRepository(db=db))
+    return await controller.get_polygon(table_name=table_name, response=response)
