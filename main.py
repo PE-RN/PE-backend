@@ -1,16 +1,27 @@
+from pydantic import EmailStr
+from typing import Annotated
+from datetime import datetime, timedelta, timezone
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, Response, Depends
+from fastapi import FastAPI, Response, Depends, Body, BackgroundTasks
 from schemas.geojson import GeoJSON
-from scripts.hydrogen_costs import hydrogen_costs
 from sqlalchemy.orm import Session
 import sentry_sdk
 import os
+from contextlib import asynccontextmanager
+from sql_app.database import init_db
 from sql_app import models
-from sql_app.database import engine, SessionLocal
-from schemas.user import UserCreate, User
+from jose import JWTError, jwt
+from sql_app.database import SessionLocal
+import sql_app.models
+from schemas.user import UserCreate
+from schemas.token import Token
+from services.email_service import EmailService
 from controllers.user_controller import UserController
 from repositories.user_repository import UserRepository
 from controllers.process_controller import ProcessController
+from controllers.auth_controller import AuthController
+from repositories.auth_repository import AuthRepository
+from  uuid import UUID
 
 if not os.getenv('SENTRY_ENVIRONMENT', 'local') == 'local':
 
@@ -26,19 +37,23 @@ if not os.getenv('SENTRY_ENVIRONMENT', 'local') == 'local':
         profiles_sample_rate=1.0,
     )
 
-models.Base.metadata.create_all(bind=engine)
-
 
 # Dependency
-def get_db():
+async def get_db():
     db = SessionLocal()
     try:
         yield db
     finally:
-        db.close()
+        await db.close()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    yield
 
 
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -49,30 +64,41 @@ app.add_middleware(
 )
 
 
-@app.post("/users", response_model=User)
-async def post_users(user: UserCreate, db: Session = Depends(get_db)):
-    controller = UserController(repository=UserRepository(db=db))
-    return controller.create_user(user)
+@app.post("/token")
+async def login(password: Annotated[str, Body()], email: Annotated[EmailStr | None, Body()], db: Annotated[Session, Depends(get_db)]):
+    controller = AuthController(repository=AuthRepository(db=db))
+    return await controller.get_acess_token_user(email=email,password=password)
 
+@app.post('/refresh-token')
+async def refresh_token(token: Annotated[str, Body()], db: Annotated[Session, Depends(get_db)]):
+    controller = AuthController(repository=AuthRepository(db=db))
+    return await controller.refresh_tokens(token=token)
+
+@app.post("/confirm-email/{temporary_user_id}")
+async def confirm_email(temporary_user_id: UUID, db: Annotated[Session, Depends(get_db)]):
+    controller = AuthController(repository=AuthRepository(db=db))
+    return await controller.confirm_email(temporary_user_id=temporary_user_id)
+
+
+@app.post("/users", response_model=models.TemporaryUser)
+async def post_users(user: UserCreate,background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    controller = UserController(repository=UserRepository(db=db),
+                                email_service=EmailService(
+                                    host="smtp-mail.outlook.com",
+                                    port="587",
+                                    email="platenergiasrn@isi-er.com.br",
+                                    password="DevsISI00"),
+                                    background_tasks=background_tasks
+                                )
+    
+    return await controller.create_temporary_user(user)
 
 @app.post("/process/geo-processing")
 async def post_process_geo_processing(geoJSON: GeoJSON, response: Response):
     controller = ProcessController()
     return await controller.process_geo_process(geoJSON, response)
 
-
 @app.get("/process/raster/{raster_name}")
 async def post_process_raster(raster_name: str):
     controller = ProcessController()
     return await controller.process_raster(raster_name)
-
-
-@app.get("/sentry-debug")
-async def trigger_error():
-    division_by_zero = 1/0
-    return division_by_zero
-
-
-@app.post("/process/hydrogen-costs")
-async def post_hydrogen_process_costs(geojson: GeoJSON):
-    return await hydrogen_costs(geoJSON=geojson)

@@ -1,14 +1,20 @@
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
+from sqlmodel import SQLModel
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.orm import sessionmaker
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./sql_app.db"
-# SQLALCHEMY_DATABASE_URL = "postgresql://user:password@postgresserver/db"
+#ATABASE_URL = "sqlite:///./sql_app.db"
+DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/atlas"
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+async_engine = create_async_engine(
+    DATABASE_URL
 )
 SessionLocal = sessionmaker(
-    autocommit=False, autoflush=False, bind=engine)
+    autocommit=False, autoflush=False, bind=async_engine,class_= AsyncSession)
 
-Base = declarative_base()
+async def init_db():
+    """Create the database tables"""
+    async with async_engine.begin() as conn:
+        from .models import  User, Group, LogsEmail, PdfFile, Video, Geodata 
+        await conn.run_sync(SQLModel.metadata.create_all)
+
