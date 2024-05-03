@@ -3,9 +3,10 @@ import subprocess
 import geopandas
 from sqlalchemy import MetaData, Table
 from sqlalchemy.orm import Session
-from sqlalchemy import MetaData, Table, select
+from sqlalchemy import MetaData, Table, text
 from sqlalchemy.orm import Session
 from schemas.geojson import GeoJSON
+from rasterio.io import MemoryFile
 import geopandas
 import subprocess
 
@@ -72,3 +73,23 @@ class GeoRepository:
 
         polygon = geopandas.read_postgis(f'select * from {table_name}', geom_col='geometry', con=self.db.bind)
         return polygon.to_json()
+
+    async def get_raster(self, table_name) -> Geometry:
+
+        try:
+            sql_query = f"SELECT ST_AsGDALRaster(rast, 'PNG') AS rast_data FROM {table_name} WHERE ST_Intersects(rast, ST_TileEnvelope(9, 205, 264));"
+            result = self.db.execute(text(sql_query))
+            raster_datas = result.fetchall()
+            raster = b''
+
+            all_png_data = []
+            for raster_data in raster_datas:
+                all_png_data.append(raster_data[0])
+
+            complete_png_data = b''.join(all_png_data)
+            return raster_datas
+        except Exception as e:
+            print(f'EROOOOOO {e}')
+
+    async def validade_geofile(self, table_name) -> list:
+        return self.db.query(Geodata).filter(Geodata.name == table_name).with_entities(Geodata.name, Geodata.geotype).first()
