@@ -14,7 +14,7 @@ class Groups(Base):
     name = Column(String)
     description = Column(String)
 
-    users = relationship("Users", back_populates="groups")
+    #users = relationship("Users", back_populates="groups")
 
 
 class User(Base):
@@ -31,7 +31,7 @@ class User(Base):
     is_active = Column(Boolean, default=False)
     group_id = Column(Integer, ForeignKey("Groups.id"))
 
-    groups = relationship("Groups", back_populates="users")
+    #groups = relationship("Groups", back_populates="users")
 
 
 class LogsEmail(Base):
@@ -71,7 +71,7 @@ class Video(Base):
 
 class Geodata(Base):
 
-    __tablename__ = "Geodata"
+    __tablename__ = "geodata"
 
     id = Column(Integer, primary_key=True)
     created_at = Column(DateTime, default=datetime.now())

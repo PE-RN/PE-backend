@@ -84,3 +84,9 @@ async def post_hydrogen_process_costs(geojson: GeoJSON):
 async def get_geofiles_polygon(table_name: str, response: Response, db: Session = Depends(get_db)):
     controller = GeoFilesController(repository=GeoRepository(db=db))
     return await controller.get_polygon(table_name=table_name, response=response)
+
+
+@app.get("/geofiles/raster/{table_name}")
+async def get_geofiles_raster(table_name: str, response: Response, db: Session = Depends(get_db)):
+    controller = GeoFilesController(repository=GeoRepository(db=db))
+    return await controller.get_raster(table_name=table_name, response=response)
