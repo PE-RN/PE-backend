@@ -10,8 +10,8 @@ from scripts.geo_processing import clip_and_get_pixel_values
 
 class ProcessController:
 
-    def __init__(self):
-        pass
+    def __init__(self, repository: GeoRepository):
+        self.repository = repository
 
     def inject_controller():
         return ProcessController()
@@ -36,6 +36,5 @@ class ProcessController:
 
     async def process_raster(self, raster_name: str):
 
-        actual_path = os.getcwd()
-        path_tiff = actual_path + '/scripts/data/' + raster_name
-        return await read_raster_as_json(path_tiff)
+        dataset = await self.repository.get_raster_dataset(raster_name)
+        return await read_raster_as_json(dataset)

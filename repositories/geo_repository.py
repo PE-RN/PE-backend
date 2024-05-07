@@ -6,8 +6,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy import MetaData, Table, text
 from sqlalchemy.orm import Session
 from schemas.geojson import GeoJSON
-from rasterio.io import MemoryFile
+
 import geopandas
+import tempfile
+import io
+import os
 import subprocess
 
 
@@ -74,22 +77,37 @@ class GeoRepository:
         polygon = geopandas.read_postgis(f'select * from {table_name}', geom_col='geometry', con=self.db.bind)
         return polygon.to_json()
 
-    async def get_raster(self, table_name) -> Geometry:
+    async def get_raster(self, table_name, x, y, z) -> Geometry:
 
         try:
-            sql_query = f"SELECT ST_AsGDALRaster(rast, 'PNG') AS rast_data FROM {table_name} WHERE ST_Intersects(rast, ST_TileEnvelope(9, 205, 264));"
+            sql_query = f"""
+                SELECT ST_AsGDALRaster(ST_Union(ST_ColorMap(rast, 1, 'bluered')), 'PNG') AS rast_data
+                FROM {table_name}
+                WHERE ST_Intersects(rast, ST_Transform(ST_TileEnvelope({z}, {x}, {y}), 4674));
+            """
             result = self.db.execute(text(sql_query))
-            raster_datas = result.fetchall()
-            raster = b''
-
-            all_png_data = []
-            for raster_data in raster_datas:
-                all_png_data.append(raster_data[0])
-
-            complete_png_data = b''.join(all_png_data)
-            return raster_datas
+            raster_datas = result.fetchone()
+ 
+            return raster_datas[0]
         except Exception as e:
             print(f'EROOOOOO {e}')
 
     async def validade_geofile(self, table_name) -> list:
         return self.db.query(Geodata).filter(Geodata.name == table_name).with_entities(Geodata.name, Geodata.geotype).first()
+
+    async def get_raster_dataset(self, table_name) -> Dataset:
+
+        try:
+            sql_query = f"SELECT ST_AsGDALRaster(ST_Union(rast), 'GTiff') AS rast_data FROM {table_name};"
+            result = self.db.execute(text(sql_query))
+            raster_datas = result.fetchone()
+
+            with tempfile.NamedTemporaryFile(suffix=".tif", delete=False) as temp_file:
+                temp_file.write(raster_datas[0])
+
+            dataset = gdal.Open(temp_file.name)
+            os.remove(temp_file.name)
+
+            return dataset
+        except Exception as e:
+            print(f'EROOOOOO {e}')

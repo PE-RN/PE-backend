@@ -41,7 +41,7 @@ class GeoFilesController:
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
             return {"Internal Server Error": error}
 
-    async def get_raster(self, table_name: str, response: Response):
+    async def get_raster(self, table_name: str, response: Response, x, y, z):
 
         has_error, error_response = await self._validate_geofile(table_name, 'raster')
         if has_error:
@@ -49,9 +49,8 @@ class GeoFilesController:
             return error_response
 
         try:
-            raster_file = await self.repository.get_raster(table_name)
+            raster_file = await self.repository.get_raster(table_name, x, y, z)
 
-            print(raster_file)
             return StreamingResponse(
                 raster_file,
                 media_type="image/png",

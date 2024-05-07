@@ -147,7 +147,7 @@ async def get_geofiles_polygon(table_name: str, response: Response, db: Session 
     return await controller.get_polygon(table_name=table_name, response=response)
 
 
-@app.get("/geofiles/raster/{table_name}")
-async def get_geofiles_raster(table_name: str, response: Response, db: Session = Depends(get_db)):
+@app.get("/geofiles/raster/{x}/{y}/{z}/{table_name}")
+async def get_geofiles_raster(table_name: str, response: Response, x, y, z, db: Session = Depends(get_db)):
     controller = GeoFilesController(repository=GeoRepository(db=db))
-    return await controller.get_raster(table_name=table_name, response=response)
+    return await controller.get_raster(table_name=table_name, response=response, x=x, y=y, z=z)
