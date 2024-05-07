@@ -33,7 +33,7 @@ class ProcessController:
             response.status_code = status.HTTP_400_BAD_REQUEST
             return error_response
 
-        tiff_name = "VELOCIDADE_150M_RN.tif"
+        tiff_name = "VELOCIDADE_150M_RN_500m.tif"
         actual_path = os.getcwd()
         path_tiff = actual_path + '/scripts/data/' + tiff_name
         return await clip_and_get_pixel_values(geoJSON.features, path_tiff)
