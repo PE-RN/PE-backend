@@ -20,8 +20,6 @@ class GeoRepository:
 
     def upload_polygon(self, polygon: geopandas.GeoDataFrame, table_name: str, increment: bool = True, new_columns: list = None):
 
-        print('ioioasdasdasdasdasdasdasdasdasdas')
-        print(self.db.bind)
         if new_columns:
             polygon = [{**element, **new_columns} for element in polygon]
 
@@ -81,7 +79,7 @@ class GeoRepository:
 
             return raster_datas[0]
         except Exception as e:
-            print(f'Internal Server Error: {e}')
+            return f'Internal Server Error: {e}'
 
     async def validade_geofile(self, table_name) -> list:
         return self.db.query(Geodata).filter(Geodata.name == table_name).with_entities(Geodata.name, Geodata.geotype).first()
@@ -101,4 +99,4 @@ class GeoRepository:
 
             return dataset
         except Exception as e:
-            print(f'Internal Server Error: {e}')
+            return f'Internal Server Error: {e}'
