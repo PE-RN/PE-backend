@@ -27,6 +27,8 @@ class GeoRepository:
 
     def upload_polygon(self, polygon: geopandas.GeoDataFrame, table_name: str, increment: bool = True, new_columns: list = None):
 
+        print('ioioasdasdasdasdasdasdasdasdasdas')
+        print(self.db.bind)
         if new_columns:
             polygon = [{**element, **new_columns} for element in polygon]
 
@@ -34,7 +36,7 @@ class GeoRepository:
         if_exists_option = 'append' if increment else 'replace'
         polygon.to_postgis(table_name, engine, if_exists=if_exists_option)
 
-    async def upload_raster(
+    def upload_raster(
         self,
         raster_path: str,
         table_name: str,

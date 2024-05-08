@@ -56,7 +56,6 @@ test_get_polygon_parameters = [
     ('wrong_geotype', None, {'name': 'test_table', 'geotype': None}, status.HTTP_400_BAD_REQUEST, "Geofile name or type is missing")
 ]
 
-
 @pytest.mark.asyncio
 async def test_get_polygon():
 
@@ -72,7 +71,6 @@ async def test_get_polygon():
 
     # Assert
     assert raster_data == polygon
-
 
 @pytest.mark.asyncio
 async def test_get_polygon_wrong():
