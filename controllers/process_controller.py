@@ -1,14 +1,19 @@
-from fastapi import status, Response
-from schemas.geojson import GeoJSON
 import os
-from scripts.geo_processing import clip_and_get_pixel_values
+
+from fastapi import Response, status
+
+from schemas.geojson import GeoJSON
 from scripts.create_raster_obj import read_raster_as_json
+from scripts.geo_processing import clip_and_get_pixel_values
 
 
 class ProcessController:
 
     def __init__(self):
         pass
+
+    def inject_controller():
+        return ProcessController()
 
     def _validate_features(self, geoJSON: GeoJSON) -> tuple[bool, dict]:
         error_response = None
@@ -33,7 +38,7 @@ class ProcessController:
             response.status_code = status.HTTP_400_BAD_REQUEST
             return error_response
 
-        tiff_name = "VELOCIDADE_150M_RN.tif"
+        tiff_name = "VELOCIDADE_150M.tif"
         actual_path = os.getcwd()
         path_tiff = actual_path + '/scripts/data/' + tiff_name
         return await clip_and_get_pixel_values(geoJSON.features, path_tiff)

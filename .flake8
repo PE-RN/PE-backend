@@ -3,5 +3,5 @@
 #ignore = E226,E302,E41
 
 # Defina outras regras personalizadas ou padrões
-max-line-length = 130
+max-line-length = 150
 exclude = .git,__pycache__,docs/source/conf.py,old,build,dist
