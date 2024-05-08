@@ -1,6 +1,6 @@
-from fastapi import status, Response
+from fastapi import Response, status
 from fastapi.responses import StreamingResponse
-from io import BytesIO
+
 from repositories.geo_repository import GeoRepository
 from schemas.geojson import GeoJSON
 
@@ -19,10 +19,10 @@ class GeoFilesController:
         if geofile is None:
             has_error = True
             error_response = {"Bad Request": "Geofile doesn't exist"}
-        elif not geofile.name or not geofile.geotype:
+        elif not geofile['name'] or not geofile['geotype']:
             has_error = True
             error_response = {"Bad Request": "Geofile name or type is missing"}
-        elif not geofile.geotype == type:
+        elif not geofile['geotype'] == type:
             has_error = True
             error_response = {"Bad Request": "Incorrect type of geometry"}
 
@@ -41,7 +41,7 @@ class GeoFilesController:
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
             return {"Internal Server Error": error}
 
-    async def get_raster(self, table_name: str, response: Response, x, y, z):
+    async def get_raster(self, table_name: str, response: Response, x: int, y: int, z: int):
 
         has_error, error_response = await self._validate_geofile(table_name, 'raster')
         if has_error:

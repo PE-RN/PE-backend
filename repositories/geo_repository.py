@@ -1,17 +1,16 @@
-import subprocess
-
-import geopandas
-from sqlalchemy import MetaData, Table
-from sqlalchemy.orm import Session
-from sqlalchemy import MetaData, Table, text
-from sqlalchemy.orm import Session
-from schemas.geojson import GeoJSON
-
-import geopandas
-import tempfile
-import io
 import os
 import subprocess
+import tempfile
+
+import geopandas
+from osgeo import gdal
+from osgeo.gdal import Dataset
+from sqlalchemy import MetaData, Table, text
+from sqlalchemy.orm import Session
+
+from schemas.geojson import GeoJSON
+from schemas.geometry import Geometry
+from sql_app.models import Geodata
 
 
 class GeoRepository:
@@ -19,14 +18,10 @@ class GeoRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    async def upload_polygon(
-        self,
-        polygon: geopandas.GeoDataFrame,
-        table_name: str,
-        increment: bool = True,
-        new_columns: list = None
-    ) -> None:
+    def upload_polygon(self, polygon: geopandas.GeoDataFrame, table_name: str, increment: bool = True, new_columns: list = None):
 
+        print('ioioasdasdasdasdasdasdasdasdasdas')
+        print(self.db.bind)
         if new_columns:
             polygon = [{**element, **new_columns} for element in polygon]
 
@@ -34,7 +29,7 @@ class GeoRepository:
         if_exists_option = 'append' if increment else 'replace'
         polygon.to_postgis(table_name, engine, if_exists=if_exists_option)
 
-    async def upload_raster(
+    def upload_raster(
         self,
         raster_path: str,
         table_name: str,
@@ -42,20 +37,16 @@ class GeoRepository:
         increment: bool = True,
         new_columns: list = None
     ) -> None:
-
+        table_name = table_name.replace("-", "_")
         # Drop the previous table if isnt to increment
         if not increment:
             drop_table_command = f"DROP TABLE IF EXISTS {table_name};"
-            self.db.execute(drop_table_command)
+            self.db.execute(text(drop_table_command))
             self.db.commit()
 
-        # Upload the raster
-        raster2pgsql_command = f'raster2pgsql -s {srid} -I -C -M {raster_path} {table_name}'
-        output = subprocess.run(raster2pgsql_command, shell=True, capture_output=True, text=True)
-        sql_statements = output.stdout
-
-        self.db.execute(sql_statements)
-        self.db.commit()
+        # Upload the raster - change the database
+        raster2pgsql_command = f'raster2pgsql -F -I -C -s {srid} -t 256x256 {raster_path} {table_name}  | psql postgresql://postgres:admin@winhost:5432/dados'
+        subprocess.run(raster2pgsql_command, shell=True)
 
         if (not new_columns):
             return
@@ -69,7 +60,7 @@ class GeoRepository:
         raster_table_update.where(getattr(raster_table.c, first_column) == None)
         raster_table_update.values({column: value for column, value in new_columns.items()})
 
-        self.db.execute(raster_table_update)
+        self.db.execute(text(raster_table_update))
         self.db.commit()
 
     async def get_polygon(self, table_name) -> GeoJSON:
@@ -85,12 +76,12 @@ class GeoRepository:
                 FROM {table_name}
                 WHERE ST_Intersects(rast, ST_Transform(ST_TileEnvelope({z}, {x}, {y}), 4674));
             """
-            result = self.db.execute(text(sql_query))
+            result = await self.db.execute(text(sql_query))
             raster_datas = result.fetchone()
- 
+
             return raster_datas[0]
         except Exception as e:
-            print(f'EROOOOOO {e}')
+            print(f'Internal Server Error: {e}')
 
     async def validade_geofile(self, table_name) -> list:
         return self.db.query(Geodata).filter(Geodata.name == table_name).with_entities(Geodata.name, Geodata.geotype).first()
@@ -99,7 +90,7 @@ class GeoRepository:
 
         try:
             sql_query = f"SELECT ST_AsGDALRaster(ST_Union(rast), 'GTiff') AS rast_data FROM {table_name};"
-            result = self.db.execute(text(sql_query))
+            result = await self.db.execute(text(sql_query))
             raster_datas = result.fetchone()
 
             with tempfile.NamedTemporaryFile(suffix=".tif", delete=False) as temp_file:
@@ -110,4 +101,4 @@ class GeoRepository:
 
             return dataset
         except Exception as e:
-            print(f'EROOOOOO {e}')
+            print(f'Internal Server Error: {e}')
