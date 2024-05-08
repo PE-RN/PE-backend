@@ -27,8 +27,6 @@ class GeoRepository:
 
     def upload_polygon(self, polygon: geopandas.GeoDataFrame, table_name: str, increment: bool = True, new_columns: list = None):
 
-        print('ioioasdasdasdasdasdasdasdasdasdas')
-        print(self.db.bind)
         if new_columns:
             polygon = [{**element, **new_columns} for element in polygon]
 

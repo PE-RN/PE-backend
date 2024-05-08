@@ -12,6 +12,7 @@ test_get_raster_parameters = [
     ('correct_filename_no_list', b'test', 1, 1, 1, 116)
 ]
 
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("filename, query_result, x, y, z, expected", test_get_raster_parameters)
 async def test_get_raster(filename, query_result, x, y, z, expected):
@@ -31,6 +32,7 @@ test_get_raster_dataset_parameters = [
     ('wrong_filename', None, 'dataset', None),
     ('correct_filename', (b'test',), 'dataset', 'dataset'),
 ]
+
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("filename, query_result, dataset, expected", test_get_raster_dataset_parameters)
