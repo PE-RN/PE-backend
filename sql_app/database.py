@@ -1,9 +1,9 @@
-from sqlmodel import SQLModel
-from sqlalchemy.ext.asyncio import create_async_engine
-from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlalchemy.orm import sessionmaker
 from os import getenv
 
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.orm import sessionmaker
+from sqlmodel import SQLModel
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 async_engine = create_async_engine(
     getenv('DATABASE_URL', 'postgresql+asyncpg://postgres:postgres@localhost:5432/atlas')

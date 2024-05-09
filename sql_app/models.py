@@ -1,7 +1,8 @@
-from sqlmodel import SQLModel, Field, Column
-import sqlalchemy.dialects.postgresql as pg
-from uuid import UUID, uuid4
 from datetime import datetime
+from uuid import UUID, uuid4
+
+import sqlalchemy.dialects.postgresql as pg
+from sqlmodel import Column, Field, SQLModel
 
 
 class Group(SQLModel, table=True):

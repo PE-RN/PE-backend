@@ -20,12 +20,15 @@ class AuthController:
     def __init__(self, repository: AuthRepository):
         self.repository = repository
 
+    @staticmethod
     def inject_repository(db: Annotated[AsyncSession, Depends(get_db)]):
         return AuthRepository(db=db)
 
+    @staticmethod
     def inject_controller(repository: Annotated[AuthRepository, Depends(inject_repository)]):
         return AuthController(repository=repository)
 
+    @staticmethod
     async def get_user_from_token(repository: Annotated[AuthRepository, Depends(inject_repository)],
                                   authorization: Annotated[str, Header()]) -> User:
         token = authorization.split(' ')[1]
