@@ -19,14 +19,16 @@ class UserController:
         self.email_service = email_service
         self.background_tasks = background_tasks
 
+    @staticmethod
     async def inject_controller(background_tasks: BackgroundTasks, db: Annotated[AsyncSession, Depends(get_db)]):
         return UserController(repository=UserRepository(db=db),
                               email_service=EmailService(
-                                    host="smtp-mail.outlook.com",
-                                    port="587",
-                                    email="platenergiasrn@isi-er.com.br",
-                                    password="DevsISI00"),
+                                    host=getenv("SMTP_HOST"),
+                                    port=getenv("SMTP_PORT"),
+                                    email=getenv("EMAIL_SMTP"),
+                                    password=getenv("PASSWORD_SMTP"),
                               background_tasks=background_tasks)
+        )
 
     def _hash_password(self, password: str) -> str:
         pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
