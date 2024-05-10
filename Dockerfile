@@ -19,7 +19,7 @@ RUN mamba install pip gdal rasterio -n atlas -c conda-forge --yes
 RUN pip install -r requirements.txt
 
 # Expose the port the app runs on
-EXPOSE 8000
+EXPOSE 8000:8000
 
 # Environment variable
 ENV NAME PLEN
