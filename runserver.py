@@ -11,12 +11,11 @@ def install_dependencies():
     # os.environ['C_INCLUDE_PATH'] = '/usr/include/gdal'
     
     # Install Python packages
-    subprocess.run(["pip", "install", "--upgrade", "pip"], check=True)
+    subprocess.run(['apt','update'])
+    subprocess.run(['apt','upgrade'])
     subprocess.run(['apt','install','gdal-bin', 'python3-gdal'],check=True)
     subprocess.run(["pip", "install", "GDAL", "rasterio"], check=True)  # Add other packages as needed
-    # Install from requirements.txt if you have one
-    subprocess.run(["pip", "install", "-r", "requirements.txt"], check=True)
-
+    
 def main():
     # Install dependencies before starting the server
     install_dependencies()
