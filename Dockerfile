@@ -21,4 +21,4 @@ RUN pip install -r requirements.txt
 # Environment variable
 ENV NAME PLEN
 
-EXPOSE 8000
+EXPOSE 8080
