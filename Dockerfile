@@ -20,6 +20,3 @@ RUN pip install -r requirements.txt
 
 # Environment variable
 ENV NAME PLEN
-
-# Command to run the app
-CMD ["python", "-m", "uvicorn", "main:app", "--workers=4"]
