@@ -42,7 +42,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8000"],  # Allows only requests from localhost:8000
+    allow_origins=["http://localhost:8000", 'https://plataforma-energias-rn-production.up.railway.app'],  # Allows only requests from localhost:8000
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
