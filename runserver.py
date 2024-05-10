@@ -11,8 +11,8 @@ def install_dependencies():
     # os.environ['C_INCLUDE_PATH'] = '/usr/include/gdal'
     
     # Install Python packages
-    subprocess.run(['apt','update'])
-    subprocess.run(['apt','upgrade'])
+    subprocess.run(['apt','update'],check=True)
+    subprocess.run(['apt','upgrade'],check=True)
     subprocess.run(['apt','install','gdal-bin', 'python3-gdal'],check=True)
     subprocess.run(["pip", "install", "GDAL", "rasterio"], check=True)  # Add other packages as needed
     
