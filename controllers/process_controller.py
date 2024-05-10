@@ -1,6 +1,7 @@
 import os
 
-from fastapi import Response, status
+from fastapi import status
+from fastapi.exceptions import HTTPException
 
 from schemas.geojson import GeoJSON
 from scripts.create_raster_obj import read_raster_as_json
@@ -15,28 +16,18 @@ class ProcessController:
     def inject_controller():
         return ProcessController()
 
-    def _validate_features(self, geoJSON: GeoJSON) -> tuple[bool, dict]:
-        error_response = None
-        has_error = False
+    def _validate_features(self, geoJSON: GeoJSON) -> None:
         for feature in geoJSON.features:
             if not (feature.geometry.type in {"Polygon", "MultiPolygon"}):
-                has_error = True
-                error_response = {"Bad Request": "Type of geometry not supported"}
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Type of geometry not supported")
             if (feature.geometry.type == 'Polygon' and len(feature.geometry.coordinates[0]) < 4):
-                has_error = True
-                error_response = {"Bad Request": "Incorrect number of coordinates"}
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect number of coordinates")
             if feature.geometry.type == 'Polygon' and feature.geometry.coordinates[0][-1] != feature.geometry.coordinates[0][0]:
-                has_error = True
-                error_response = {"Bad Request": "Incorrect coordinates in Polygon"}
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect coordinates in Polygon")
 
-        return has_error, error_response
+    async def process_geo_process(self, geoJSON: GeoJSON):
 
-    async def process_geo_process(self, geoJSON: GeoJSON, response: Response):
-
-        has_error, error_response = self._validate_features(geoJSON)
-        if has_error:
-            response.status_code = status.HTTP_400_BAD_REQUEST
-            return error_response
+        self._validate_features(geoJSON)
 
         tiff_name = os.getenv("TIFF_NAME_GEO_PROCESS")
         actual_path = os.getcwd()

@@ -1,6 +1,6 @@
 [flake8]
 # Ignore alguns erros específicos
-#ignore = E226,E302,E41
+ignore = E711
 
 # Defina outras regras personalizadas ou padrões
 max-line-length = 150

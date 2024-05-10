@@ -10,7 +10,7 @@ from repositories.user_repository import UserRepository
 from schemas.user import UserCreate
 from services.email_service import EmailService
 from sql_app.database import get_db
-
+from passlib.hash import bcrypt_sha256
 
 class UserController:
 
@@ -21,20 +21,22 @@ class UserController:
 
     @staticmethod
     async def inject_controller(background_tasks: BackgroundTasks, db: Annotated[AsyncSession, Depends(get_db)]):
-        return UserController(repository=UserRepository(db=db),
-                              email_service=EmailService(
-                                    host=getenv("SMTP_HOST"),
-                                    port=getenv("SMTP_PORT"),
-                                    email=getenv("EMAIL_SMTP"),
-                                    password=getenv("PASSWORD_SMTP"),
-                              background_tasks=background_tasks)
+        return UserController(
+            repository=UserRepository(db=db),
+            email_service=EmailService(
+                host=getenv("SMTP_HOST"),
+                port=getenv("SMTP_PORT"),
+                email=getenv("EMAIL_SMTP"),
+                password=getenv("PASSWORD_SMTP"),
+                background_tasks=background_tasks
+            )
         )
 
     def _hash_password(self, password: str) -> str:
         pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-        pwd_context.update(bcrypt__salt_size=5)
-
-        return pwd_context.hash(password)
+        pwd_context.update(bcrypt__salt_size=22)
+        print(getenv("SECRET_KEY"))
+        return bcrypt_sha256.hash(password+getenv("SECRET_KEY"))
 
     async def create_temporary_user(self, user: UserCreate):
 
@@ -48,8 +50,9 @@ class UserController:
 
         temporary_user = await self.repository.create_temporary_user(user)
 
-        self.background_tasks.add_task(self.email_service.send_account_confirmation_account, to_email=user.email,
-                                       ocupation=user.ocupation,
-                                       link_url=f"{getenv('HOST_URL')}confirm-email/{temporary_user.id}")
+        if getenv('ENVIRONMENT') != 'local' :
+            self.background_tasks.add_task(self.email_service.send_account_confirmation_account, to_email=user.email,
+                                        ocupation=user.ocupation,
+                                        link_url=f"{getenv('HOST_URL')}confirm-email/{temporary_user.id}")
 
         return temporary_user
