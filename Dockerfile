@@ -1,7 +1,6 @@
 # Use Miniconda base image
 FROM continuumio/miniconda3
 
-WORKDIR /usr/src/app
 
 # Copy the application files
 COPY . .

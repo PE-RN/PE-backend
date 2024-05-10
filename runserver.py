@@ -12,8 +12,8 @@ def install_dependencies():
     
     # Install Python packages
    # Installing GDAL directly through nix which includes most required libs
-    subprocess.run(["nix-env", "-iA", "nixpkgs.gdal"], check=True)
-    subprocess.run(["pip", "install", "GDAL", "rasterio"], check=True)  # Add other packages as needed
+    #subprocess.run(["nix-env", "-iA", "nixpkgs.gdal"], check=True)
+    #subprocess.run(["pip", "install", "GDAL", "rasterio"], check=True)  # Add other packages as needed
     
 def main():
     # Install dependencies before starting the server
