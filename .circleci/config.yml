@@ -25,15 +25,15 @@ jobs:
             echo 'export PATH="/opt/conda/envs/atlas/bin:$PATH"' >> $BASH_ENV
             pip install -r requirements.txt
             pip install pytest flake8 bandit
-            echo 'export ENVIRONMENT=local' >> $ENVIRONMENT
-            echo 'export SECRET_KEY=00e6c33aa1a2d3da5fa7766aae8b1dfc5293341f7104a92097a5e26b09640059' >> $SECRET_KEY
-            echo 'export ALGORITHM=HS256' >> $ALGORITHM
-            echo 'export ACCESS_TOKEN_EXPIRE_MINUTES=60' >> $ACCESS_TOKEN_EXPIRE_MINUTES
-            echo 'export REFRESH_TOKEN_EXPIRE_MINUTES=1440' >> $REFRESH_TOKEN_EXPIRE_MINUTES
       # Execução dos testes
       - run:
           name: Run Tests
           command: |
+            export ENVIRONMENT=local
+            export SECRET_KEY=00e6c33aa1a2d3da5fa7766aae8b1dfc5293341f7104a92097a5e26b09640059
+            export ALGORITHM=HS256
+            export ACCESS_TOKEN_EXPIRE_MINUTES=60
+            export REFRESH_TOKEN_EXPIRE_MINUTES=1440
             pytest test
       
       # Execução de lint
