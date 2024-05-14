@@ -26,7 +26,7 @@ jobs:
             echo 'export PATH="/opt/conda/envs/atlas/bin:$PATH"' >> $BASH_ENV
             pip install psycopg2-binary
             pip install -r requirements.txt
-            pip install pytest flake8 bandit GDAL
+            pip install pytest flake8 bandit
       # Execução dos testes
       - run:
           name: Run Tests
