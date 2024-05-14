@@ -21,17 +21,15 @@ jobs:
           command: |
             conda install mamba -n base -c conda-forge
             mamba create -n atlas python=3.11.8 -c conda-forge --yes
-            echo "source activate atlas" > ~/.bashrc
+            source activate atlas
             mamba install pip gdal rasterio -n atlas -c conda-forge --yes
-            echo 'export PATH="/opt/conda/envs/atlas/bin:$PATH"' >> $BASH_ENV
-            pip install psycopg2-binary
+            #echo 'export PATH="/opt/conda/envs/atlas/bin:$PATH"' >> $BASH_ENV
             pip install -r requirements.txt
             pip install pytest flake8 bandit
       # Execução dos testes
       - run:
           name: Run Tests
           command: |
-            echo "source activate atlas" > ~/.bashrc
             pytest test
       
       # Execução de lint
