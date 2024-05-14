@@ -4,7 +4,13 @@ jobs:
   build:
     docker:
       - image: cimg/python:3.11
-
+      - image: postgres:latest
+        environment:
+          #POSTGRES_DB: your_database_name
+          POSTGRES_USER: 'postgres'
+          POSTGRES_PASSWORD: 'postgres'
+    
+          
     working_directory: ~/atlaseolica-back-end
     
     steps:
@@ -20,7 +26,7 @@ jobs:
       - run:
           name: Run Tests
           command: |
-            #pytest test/
+            pytest test
       
       # Execução de lint
       - run:

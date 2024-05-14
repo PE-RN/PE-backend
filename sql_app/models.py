@@ -38,7 +38,7 @@ class TemporaryUser(SQLModel, table=True):
     created_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
     updated_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
     deleted_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
-    email: str = Field(index=True)
+    email: str = Field(index=True, unique=True)
     password: str
     ocupation: str
     group_id: UUID | None = Field(
@@ -62,7 +62,7 @@ class User(SQLModel, table=True):
     created_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
     updated_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
     deleted_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
-    email: str = Field(index=True)
+    email: str = Field(index=True, unique=True)
     password: str
     ocupation: str
     is_active: bool = Field(default=True)

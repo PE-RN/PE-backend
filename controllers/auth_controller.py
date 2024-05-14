@@ -6,7 +6,6 @@ from uuid import UUID
 from fastapi import Depends, Header, status
 from fastapi.exceptions import HTTPException
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from pydantic import EmailStr
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -14,20 +13,23 @@ from repositories.auth_repository import AuthRepository
 from schemas.token import Token
 from sql_app.database import get_db
 from sql_app.models import User
-from passlib.hash import bcrypt_sha256
+import bcrypt
 
 
 class AuthController:
 
     def __init__(self, repository: AuthRepository):
+
         self.repository = repository
 
     @staticmethod
     def inject_repository(db: Annotated[AsyncSession, Depends(get_db)]) -> AuthRepository:
+
         return AuthRepository(db=db)
 
     @staticmethod
     def inject_controller(repository: Annotated[AuthRepository, Depends(inject_repository)]):
+
         return AuthController(repository=repository)
 
     @staticmethod
@@ -40,8 +42,8 @@ class AuthController:
         try:
             payload = jwt.decode(token, getenv("SECRET_KEY"), algorithms=[getenv("ALGORITHM")])
             current_time = datetime.now(timezone.utc)
-            expiration_time = payload.get('exp')
 
+            expiration_time = payload.get('exp')
             if current_time > datetime.fromtimestamp(expiration_time, timezone.utc):
                 raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expirado!")
             email = payload.get('sub')
@@ -53,26 +55,28 @@ class AuthController:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido!")
 
     def verify_password_hash(self, password: str, hashed_password: str) -> bool:
-        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-        pwd_context.update(bcrypt__salt_size=22)
-        return  bcrypt_sha256.verify(password+getenv("SECRET_KEY"), hashed_password)
 
-    def generate_access_token(self, email: str) -> str :
+        return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
+
+    def generate_access_token(self, email: str) -> str:
+
         to_enconde = {"sub": email}
         acess_token_expires_time = datetime.now(timezone.utc) + timedelta(minutes=int(getenv("ACCESS_TOKEN_EXPIRE_MINUTES")))
         to_enconde.update({"exp": acess_token_expires_time})
+        to_enconde.update({"iat": datetime.now(timezone.utc)})
+
         return jwt.encode(to_enconde, getenv("SECRET_KEY"), algorithm=getenv("ALGORITHM"))
 
     async def get_acess_token_user(self, email: EmailStr, password: str) -> Token:
+
         user = await self.authenticate_user(email, password)
         if not user:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Usuário não encontrado!")
-        if not self.verify_password_hash(password, user.password):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Credenciais inválidas!")
 
-        return Token(acess_token=self.generate_access_token(email), token_type="Bearear")
+        return Token(access_token=self.generate_access_token(email), token_type="Bearear")
 
     async def authenticate_user(self, email: EmailStr, password: str) -> User | None:
+
         user = await self.repository.get_user_by_email(email)
         if user and self.verify_password_hash(password, user.password):
             return user
@@ -115,4 +119,4 @@ class AuthController:
     async def refresh_tokens(self, token) -> Token:
         email = await self.validate_and_get_email_from_token(token)
         new_access_token = self.generate_access_token(email)
-        return Token(access_token=new_access_token,token_type="Bearer")
+        return Token(access_token=new_access_token, token_type="Bearer")

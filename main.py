@@ -5,7 +5,7 @@ from uuid import UUID
 
 import sentry_sdk
 from dotenv import load_dotenv
-from fastapi import Body, Depends, FastAPI
+from fastapi import Body, Depends, FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import EmailStr
 
@@ -66,7 +66,7 @@ async def login(
 
 @app.post('/refresh-token', response_model=Token)
 async def refresh_token(
-    token: Annotated[str, Body()],
+    token: Annotated[str, Body(embed=True)],
     controller: Annotated[AuthController, Depends(AuthController.inject_controller)]
 ):
 
@@ -82,9 +82,12 @@ async def confirm_email(
     return await controller.confirm_email(temporary_user_id=temporary_user_id)
 
 
-@app.post("/users", response_model=models.TemporaryUser)
+@app.post("/users",
+          response_model=models.TemporaryUser,
+          response_model_exclude={"password", "updated_at", "deleted_at"},
+          status_code=status.HTTP_201_CREATED)
 async def post_users(
-    user: UserCreate, 
+    user: UserCreate,
     controller: Annotated[UserController, Depends(UserController.inject_controller)]
 ):
 
