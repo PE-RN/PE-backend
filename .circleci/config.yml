@@ -31,18 +31,21 @@ jobs:
       - run:
           name: Run Tests
           command: |
+            source activate atlas
             pytest test
       
       # Execução de lint
       - run:
           name: Run Lint
           command: |
+            source activate atlas
             flake8 .
       
       # Execução do Bandit para análise de segurança
       - run:
           name: Run Bandit
           command: |
+            source activate atlas
             bandit -r . --exclude repositories/geo_repository.py  || (echo "Bandit found issues!" && false)
 
   
