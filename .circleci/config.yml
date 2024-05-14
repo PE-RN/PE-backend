@@ -46,7 +46,7 @@ jobs:
       - run:
           name: Run Bandit
           command: |
-            bandit -r . --exclude 'repositories/geo_repository.py' --exclude '*_test.py' --exclude '*test_*.py' || (echo "Bandit found issues!" && false)
+            bandit -c bandit.yaml -r . || (echo "Bandit found issues!" && false)
 
   
 workflows:
