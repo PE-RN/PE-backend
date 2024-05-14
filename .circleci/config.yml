@@ -3,7 +3,7 @@ version: 2.1
 jobs:
   build:
     docker:
-      - image: cimg/python:3.11
+      - image: continuumio/miniconda3
       - image: postgres:latest
         environment:
           #POSTGRES_DB: your_database_name
@@ -19,13 +19,11 @@ jobs:
       - run:
           name: Install Dependencies
           command: |
-            sudo add-apt-repository ppa:ubuntugis/ppa
-            sudo apt update
-            sudo apt install libgdal-dev gdal-bin
-            export CPLUS_INCLUDE_PATH=/usr/include/gdal
-            export C_INCLUDE_PATH=/usr/include/gdal
-            sudo apt install python3.11-dev
-            python -m pip install --upgrade pip
+            conda install mamba -n base -c conda-forge
+            mamba create -n atlas python=3.11.8 -c conda-forge --yes
+            echo "source activate atlas" > ~/.bashrc
+            mamba install pip gdal rasterio -n atlas -c conda-forge --yes
+            echo 'export PATH="/opt/conda/envs/atlas/bin:$PATH"' >> $BASH_ENV
             pip install -r requirements.txt
             pip install pytest flake8 bandit GDAL
       # Execução dos testes
