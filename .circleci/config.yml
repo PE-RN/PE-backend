@@ -19,9 +19,12 @@ jobs:
       - run:
           name: Install Dependencies
           command: |
-            sudo add-apt-repository universe
+            sudo add-apt-repository ppa:ubuntugis/ppa
             sudo apt update
-            sudo apt install build-essential libgdal-dev gdal-bin -y
+            sudo apt install libgdal-dev gdal-bin
+            export CPLUS_INCLUDE_PATH=/usr/include/gdal
+            export C_INCLUDE_PATH=/usr/include/gdal
+            sudo apt install python3.11-dev
             python -m pip install --upgrade pip
             pip install -r requirements.txt
             pip install pytest flake8 bandit GDAL
