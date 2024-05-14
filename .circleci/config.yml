@@ -23,7 +23,7 @@ jobs:
             mamba create -n atlas python=3.11.8 -c conda-forge --yes
             source activate atlas
             mamba install pip gdal rasterio -n atlas -c conda-forge --yes
-            #echo 'export PATH="/opt/conda/envs/atlas/bin:$PATH"' >> $BASH_ENV
+            echo 'export PATH="/opt/conda/envs/atlas/bin:$PATH"' >> $BASH_ENV
             pip install -r requirements.txt
             pip install pytest flake8 bandit
       # Execução dos testes
