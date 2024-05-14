@@ -31,7 +31,7 @@ jobs:
       - run:
           name: Run Tests
           command: |
-            source activate atlas
+            echo "source activate atlas" > ~/.bashrc
             pytest test
       
       # Execução de lint
