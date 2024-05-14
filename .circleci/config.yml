@@ -19,7 +19,7 @@ jobs:
       - run:
           name: Install Dependencies
           command: |
-            apt install build-essential libgdal-dev gdal-bin -y
+            sudo apt install build-essential libgdal-dev gdal-bin -y
             python -m pip install --upgrade pip
             pip install -r requirements.txt
             pip install pytest flake8 bandit GDAL
