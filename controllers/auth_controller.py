@@ -73,7 +73,7 @@ class AuthController:
         if not user:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Usuário não encontrado!")
 
-        return Token(access_token=self.generate_access_token(email), token_type="Bearear")
+        return Token(access_token=self.generate_access_token(email))
 
     async def authenticate_user(self, email: EmailStr, password: str) -> User | None:
 
@@ -119,4 +119,4 @@ class AuthController:
     async def refresh_tokens(self, token) -> Token:
         email = await self.validate_and_get_email_from_token(token)
         new_access_token = self.generate_access_token(email)
-        return Token(access_token=new_access_token, token_type="Bearer")
+        return Token(access_token=new_access_token)

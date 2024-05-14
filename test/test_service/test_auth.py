@@ -40,7 +40,6 @@ async def test_token_user(async_client, user_repository):
     # Assert
     assert response.status_code == 200
     assert 'access_token' in response.json()
-    assert 'token_type' in response.json()
 
 
 @pytest.mark.anyio
@@ -81,4 +80,3 @@ async def test_refresh_token_user(async_client, user_repository):
     # Assert
     assert response.status_code == 200
     assert 'access_token' in response.json()
-    assert 'token_type' in response.json()
