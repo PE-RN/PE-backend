@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+
 from schemas.geometry import Geometry
 from schemas.properties import Properties
 

@@ -1,8 +1,10 @@
 import json
-from osgeo import gdal, ogr, osr
+
 import numpy as np
-from schemas.feature import Feature
 from asyncer import asyncify
+from osgeo import gdal, ogr, osr
+
+from schemas.feature import Feature
 
 
 async def clip_and_get_pixel_values(features: list[Feature], input_tiff_path):

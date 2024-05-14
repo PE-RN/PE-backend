@@ -1,5 +1,5 @@
-from osgeo import gdal
 import numpy as np
+from osgeo import gdal
 
 
 async def read_raster_as_json(input_tiff_path):

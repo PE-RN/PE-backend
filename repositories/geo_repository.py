@@ -1,7 +1,8 @@
+import subprocess
+
+import geopandas
 from sqlalchemy import MetaData, Table
 from sqlalchemy.orm import Session
-import geopandas
-import subprocess
 
 
 class GeoRepository:
