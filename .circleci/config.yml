@@ -18,18 +18,21 @@ jobs:
       - run:
           name: Install Dependencies
           command: |
-            conda install mamba -n base -c conda-forge
-            mamba create -n atlas python=3.11.8 -c conda-forge --yes
-            source activate atlas
-            mamba install pip gdal rasterio -n atlas -c conda-forge --yes
-            echo 'export PATH="/opt/conda/envs/atlas/bin:$PATH"' >> $BASH_ENV
-            pip install -r requirements.txt
-            pip install pytest flake8 bandit
+            #conda install mamba -n base -c conda-forge
+            #mamba create -n atlas python=3.11.8 -c conda-forge --yes
+            #source activate atlas
+            #mamba install pip gdal rasterio -n atlas -c conda-forge --yes
+            #echo 'export PATH="/opt/conda/envs/atlas/bin:$PATH"' >> $BASH_ENV
+            #pip install -r requirements.txt
+            #pip install pytest flake8 bandit
+            #echo "antes das varaveis"
             export ENVIRONMENT="local"
-            export SECRET_KEY="00e6c33aa1a2d3da5fa7766aae8b1dfc5293341f7104a92097a5e26b09640059"
-            export ALGORITHM="HS256"
-            export ACCESS_TOKEN_EXPIRE_MINUTES="60"
-            export REFRESH_TOKEN_EXPIRE_MINUTES="1440"
+            echo $ENVIRONMENT
+            export SECRET_KEY=00e6c33aa1a2d3da5fa7766aae8b1dfc5293341f7104a92097a5e26b09640059"
+            export ALGORITHM=HS256
+            export ACCESS_TOKEN_EXPIRE_MINUTES=60
+            export REFRESH_TOKEN_EXPIRE_MINUTES=1440
+            echo "depoisssss"
       # Execução dos testes
       - run:
           name: Run Tests
