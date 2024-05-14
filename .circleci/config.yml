@@ -24,6 +24,7 @@ jobs:
             echo "source activate atlas" > ~/.bashrc
             mamba install pip gdal rasterio -n atlas -c conda-forge --yes
             echo 'export PATH="/opt/conda/envs/atlas/bin:$PATH"' >> $BASH_ENV
+            pip install psycopg2-binary
             pip install -r requirements.txt
             pip install pytest flake8 bandit GDAL
       # Execução dos testes
