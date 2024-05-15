@@ -139,7 +139,7 @@ class Geodata(SQLModel, table=True):
     This class represents a Geodata in database
     """
 
-    __tablename__ = "geodata"
+    __tablename__ = "Geodata"
 
     id: UUID = Field(
         sa_column=Column(pg.UUID, primary_key=True, unique=True, default=uuid4)
