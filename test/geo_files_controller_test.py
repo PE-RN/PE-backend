@@ -103,4 +103,4 @@ async def test_get_raster(table_name, raster, validation_return, expected):
     your_object = GeoFilesController(repository=mock_repository)
 
     raster_data = await your_object.get_raster(table_name, mock_response, 1, 1, 1)
-    assert type(raster_data) == type(expected)
+    assert type(raster_data) is type(expected)

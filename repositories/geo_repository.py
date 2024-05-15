@@ -3,6 +3,8 @@ import subprocess
 import tempfile
 
 import geopandas
+from fastapi import status
+from fastapi.exceptions import HTTPException
 from osgeo import gdal
 from osgeo.gdal import Dataset
 from sqlalchemy import MetaData, Table, text
@@ -43,7 +45,10 @@ class GeoRepository:
             self.db.commit()
 
         # Upload the raster - change the database
-        raster2pgsql_command = f'raster2pgsql -F -I -C -s {srid} -t 256x256 {raster_path} {table_name}  | psql postgresql://postgres:admin@winhost:5432/dados'
+        raster2pgsql_command = f"""
+            raster2pgsql -F -I -C -s {srid} -t 256x256 {raster_path} {table_name}  |
+            psql postgresql://postgres:admin@172.18.208.1:5432/dados
+        """
         subprocess.run(raster2pgsql_command, shell=True)
 
         if (not new_columns):
@@ -79,7 +84,7 @@ class GeoRepository:
 
             return raster_datas[0]
         except Exception as e:
-            return f'Internal Server Error: {e}'
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Internal Server Error: {e}')
 
     async def validade_geofile(self, table_name) -> list:
         return self.db.query(Geodata).filter(Geodata.name == table_name).with_entities(Geodata.name, Geodata.geotype).first()
@@ -99,4 +104,4 @@ class GeoRepository:
 
             return dataset
         except Exception as e:
-            return f'Internal Server Error: {e}'
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Internal Server Error: {e}')

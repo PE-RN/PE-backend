@@ -3,6 +3,7 @@ import os
 from fastapi import status
 from fastapi.exceptions import HTTPException
 
+from repositories.geo_repository import GeoRepository
 from schemas.geojson import GeoJSON
 from scripts.create_raster_obj import read_raster_as_json
 from scripts.geo_processing import clip_and_get_pixel_values
