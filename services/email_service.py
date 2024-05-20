@@ -1,6 +1,7 @@
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+import ssl
 
 
 class EmailService:
@@ -19,8 +20,9 @@ class EmailService:
 
         server = smtplib.SMTP(host=self.host, port=self.port)
         try:
+            context = ssl.create_default_context()
             server.ehlo()
-            server.starttls()
+            server.starttls(context=context)
             server.login(self.email, self.password)
 
             link_url = link_url.replace("&", "&amp;")
