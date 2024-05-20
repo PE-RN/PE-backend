@@ -1,9 +1,12 @@
+import secrets
+import string
 from datetime import datetime, timedelta, timezone
 from os import getenv
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, Header, status, BackgroundTasks
+import bcrypt
+from fastapi import BackgroundTasks, Depends, Header, status
 from fastapi.exceptions import HTTPException
 from jose import JWTError, jwt
 from pydantic import EmailStr
@@ -11,12 +14,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from repositories.auth_repository import AuthRepository
 from schemas.token import Token
+from services.email_service import EmailService
 from sql_app.database import get_db
 from sql_app.models import User
-import bcrypt
-from services.email_service import EmailService
-import secrets
-import string
 
 
 class AuthController:

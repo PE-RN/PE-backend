@@ -1,8 +1,10 @@
-import pytest
-from schemas.user import UserCreate
-import bcrypt
 import random
 import string
+
+import bcrypt
+import pytest
+
+from schemas.user import UserCreate
 
 
 @pytest.mark.anyio
