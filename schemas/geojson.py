@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+
 from schemas.feature import Feature
 
 
