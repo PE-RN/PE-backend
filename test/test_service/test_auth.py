@@ -80,3 +80,52 @@ async def test_refresh_token_user(async_client, user_repository):
     # Assert
     assert response.status_code == 200
     assert 'access_token' in response.json()
+
+
+@pytest.mark.anyio
+async def test_change_password(async_client, user_repository):
+
+    # Arrange
+    password = 'test'
+    bytes_pass = password.encode('utf-8')
+    salt = bcrypt.gensalt()
+    hash = bcrypt.hashpw(bytes_pass, salt)
+    rand_str = ''.join(random.choices(string.ascii_lowercase, k=6))
+
+    user = await user_repository.create_user(UserCreate(
+        email=f"rodolfo{rand_str}@is-er.com.br", password=hash.decode('utf-8'), group_id=None, ocupation="Bolsista"))
+
+    body = {"email": user.email, "password": password}
+    response_token = await async_client.post("/token", json=body)
+    access_token = response_token.json()["access_token"]
+
+    new_password = 'new_test'
+    body_change_password = {"password": password, "new_password": new_password}
+
+    # Act
+    response = await async_client.post("/change-password", json=body_change_password, headers={"Authorization": f"Bearer {access_token}"})
+
+    # Assert
+    assert response.status_code == 200
+
+
+@pytest.mark.anyio
+async def test_recovery_password(async_client, user_repository):
+
+    # Arrange
+    password = 'test'
+    bytes_pass = password.encode('utf-8')
+    salt = bcrypt.gensalt()
+    hash = bcrypt.hashpw(bytes_pass, salt)
+    rand_str = ''.join(random.choices(string.ascii_lowercase, k=6))
+    user = await user_repository.create_user(UserCreate(
+        email=f"rodolfo{rand_str}@is-er.com.br", password=hash.decode('utf-8'), group_id=None, ocupation="Bolsista"))
+    body = {"email": user.email, "password": password}
+    response_token = await async_client.post("/token", json=body)
+    access_token = response_token.json()["access_token"]
+
+    # Act
+    response = await async_client.post("/recovery-password", json={}, headers={"Authorization": f"Bearer {access_token}"})
+
+    # Assert
+    assert response.status_code == 200

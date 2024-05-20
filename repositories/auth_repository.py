@@ -35,3 +35,9 @@ class AuthRepository:
         statment = select(models.TemporaryUser).filter_by(id=temporary_user_id).fetch(1)
         users = await self.db.exec(statment)
         return users.first()
+
+    async def update_user(self, user: models.User):
+        self.db.add(user)
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
