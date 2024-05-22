@@ -1,9 +1,12 @@
+import secrets
+import string
 from datetime import datetime, timedelta, timezone
 from os import getenv
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, Header, status
+import bcrypt
+from fastapi import BackgroundTasks, Depends, Header, status
 from fastapi.exceptions import HTTPException
 from jose import JWTError, jwt
 from pydantic import EmailStr
@@ -11,16 +14,18 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from repositories.auth_repository import AuthRepository
 from schemas.token import Token
+from services.email_service import EmailService
 from sql_app.database import get_db
 from sql_app.models import User
-import bcrypt
 
 
 class AuthController:
 
-    def __init__(self, repository: AuthRepository):
+    def __init__(self, repository: AuthRepository, email_service: EmailService, background_tasks: BackgroundTasks):
 
         self.repository = repository
+        self.email_service = email_service
+        self.background_tasks = background_tasks
 
     @staticmethod
     def inject_repository(db: Annotated[AsyncSession, Depends(get_db)]) -> AuthRepository:
@@ -28,9 +33,15 @@ class AuthController:
         return AuthRepository(db=db)
 
     @staticmethod
-    def inject_controller(repository: Annotated[AuthRepository, Depends(inject_repository)]):
+    def inject_controller(repository: Annotated[AuthRepository, Depends(inject_repository)], background_tasks: BackgroundTasks):
 
-        return AuthController(repository=repository)
+        return AuthController(repository=repository,
+                              background_tasks=background_tasks,
+                              email_service=EmailService(
+                                  host=getenv('SMTP_HOST'),
+                                  port=getenv('SMTP_PORT'),
+                                  email=getenv('EMAIL_SMTP'),
+                                  password=getenv('PASSWORD_SMTP')))
 
     @staticmethod
     async def get_user_from_token(
@@ -117,6 +128,40 @@ class AuthController:
         return email
 
     async def refresh_tokens(self, token) -> Token:
+
         email = await self.validate_and_get_email_from_token(token)
         new_access_token = self.generate_access_token(email)
         return Token(access_token=new_access_token)
+
+    def generate_temporary_password(self):
+        caracteres = string.digits
+        senha = ''.join(secrets.choice(caracteres) for _ in range(7))
+        return senha
+
+    def _hash_password(self, password: str) -> str:
+
+        bytes_pass = password.encode('utf-8')
+        salt = bcrypt.gensalt()
+        hash = bcrypt.hashpw(bytes_pass, salt)
+
+        return hash.decode('utf-8')
+
+    async def recovery_password(self, user: User) -> None:
+
+        temporary_password = self.generate_temporary_password()
+        temporary_password_hashed = self._hash_password(temporary_password)
+
+        user.password = temporary_password_hashed
+        await self.repository.update_user(user)
+
+        if getenv('ENVIRONMENT', 'local') != 'local':
+            self.background_tasks.add_task(self.email_service.send_email_recovery_password, to_email=user.email, new_password=temporary_password)
+
+    async def change_password(self, user: User, actual_password: str, new_password: str) -> None:
+
+        if not self.verify_password_hash(actual_password, user.password):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Senha atual incorreta!")
+
+        new_password_hashed = self._hash_password(new_password)
+        user.password = new_password_hashed
+        await self.repository.update_user(user)
