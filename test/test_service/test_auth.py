@@ -30,7 +30,7 @@ async def test_token_user(async_client, user_repository):
     rand_str = ''.join(random.choices(string.ascii_lowercase, k=6))
 
     user = await user_repository.create_user(UserCreate(
-        email=f"rodolfo{rand_str}@is-er.com.br", password=hash.decode('utf-8'), group_id=None, ocupation="Bolsista"))
+        email=f"rodolfo{rand_str}@is-er.com.br", password=hash.decode('utf-8'), group_id=None, ocupation="pesquisador"))
 
     body = {"email": user.email, "password": password}
 
@@ -47,7 +47,7 @@ async def test_create_user(async_client):
 
     # Arrange
     rand_str = ''.join(random.choices(string.ascii_lowercase, k=6))
-    body = {"email": f"rodolfobez15{rand_str}@gmail.com", "password": "test", "group_id": None, "ocupation": "Bolsista"}
+    body = {"email": f"rodolfobez15{rand_str}@gmail.com", "password": "test", "group_id": None, "ocupation": "pesquisador"}
 
     # Act
     response = await async_client.post("/users", json=body)
@@ -55,6 +55,20 @@ async def test_create_user(async_client):
     # Assert
     assert response.status_code == 201
     assert all(key in {"email", "group_id", "ocupation", "created_at", "id"} for key in response.json())
+
+
+@pytest.mark.anyio
+async def test_create_user_with_incorrect_ocupation(async_client):
+
+    # Arrange
+    rand_str = ''.join(random.choices(string.ascii_lowercase, k=6))
+    body = {"email": f"rodolfobez15{rand_str}@gmail.com", "password": "test", "group_id": None, "ocupation": "aleatório"}
+
+    # Act
+    response = await async_client.post("/users", json=body)
+
+    # Assert
+    assert response.status_code == 422
 
 
 @pytest.mark.anyio
@@ -68,7 +82,7 @@ async def test_refresh_token_user(async_client, user_repository):
     rand_str = ''.join(random.choices(string.ascii_lowercase, k=6))
 
     user = await user_repository.create_user(UserCreate(
-        email=f"rodolfo{rand_str}@is-er.com.br", password=hash.decode('utf-8'), group_id=None, ocupation="Bolsista"))
+        email=f"rodolfo{rand_str}@is-er.com.br", password=hash.decode('utf-8'), group_id=None, ocupation="pesquisador"))
 
     body = {"email": user.email, "password": password}
 
