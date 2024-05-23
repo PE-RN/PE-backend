@@ -26,7 +26,7 @@ class AuthRepository:
         return users.first()
 
     async def create_log_email(self, content: str, to: str, sender: str, subject: str, has_error: bool, error_message: str | None = None):
-        log_email = models.LogsEmail(to=to, sender=sender, subject=subject, has_error=has_error, error_message=error_message)
+        log_email = models.LogsEmail(content=content, to=to, sender=sender, subject=subject, has_error=has_error, error_message=error_message)
         self.db.add(log_email)
         await self.db.commit()
         return await self.db.refresh(log_email)
