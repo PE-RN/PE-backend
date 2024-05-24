@@ -18,7 +18,7 @@ class Group(SQLModel, table=True):
     )
     created_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
     updated_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
-    deleted_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
+    deleted_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=None, nullable=True))
     name: str = Field(index=True)
     description: str
 
@@ -37,7 +37,7 @@ class TemporaryUser(SQLModel, table=True):
     )
     created_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
     updated_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
-    deleted_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
+    deleted_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=None, nullable=True))
     email: str = Field(index=True, unique=True)
     password: str
     ocupation: str
@@ -61,7 +61,7 @@ class User(SQLModel, table=True):
     )
     created_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
     updated_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
-    deleted_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
+    deleted_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=None, nullable=True))
     email: str = Field(index=True, unique=True)
     password: str
     ocupation: str
@@ -86,7 +86,7 @@ class LogsEmail(SQLModel, table=True):
     )
     created_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
     updated_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
-    deleted_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
+    deleted_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=None, nullable=True))
     content: str
     to: str
     sender: str
@@ -108,7 +108,7 @@ class PdfFile(SQLModel, table=True):
     )
     created_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
     updated_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
-    deleted_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
+    deleted_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=None, nullable=True))
     name: str
     path: str
     category: str
@@ -127,7 +127,7 @@ class Video(SQLModel, table=True):
     )
     created_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
     updated_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
-    deleted_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
+    deleted_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=None, nullable=True))
     name: str
     path: str
     category: str
@@ -146,7 +146,7 @@ class Geodata(SQLModel, table=True):
     )
     created_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
     updated_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
-    deleted_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
+    deleted_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=None, nullable=True))
     cd_sedec: str
     name: str
     category: str

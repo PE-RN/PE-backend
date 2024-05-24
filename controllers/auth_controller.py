@@ -74,17 +74,24 @@ class AuthController:
         to_enconde = {"sub": email}
         acess_token_expires_time = datetime.now(timezone.utc) + timedelta(minutes=int(getenv("ACCESS_TOKEN_EXPIRE_MINUTES")))
         to_enconde.update({"exp": acess_token_expires_time})
-        to_enconde.update({"iat": datetime.now(timezone.utc)})
 
         return jwt.encode(to_enconde, getenv("SECRET_KEY"), algorithm=getenv("ALGORITHM"))
 
-    async def get_acess_token_user(self, email: EmailStr, password: str) -> Token:
+    def generate_refresh_token(self, email: str) -> str:
+
+        to_enconde = {"sub": email}
+        acess_token_expires_time = datetime.now(timezone.utc) + timedelta(minutes=int(getenv("REFRESH_TOKEN_EXPIRE_MINUTES")))
+        to_enconde.update({"exp": acess_token_expires_time})
+
+        return jwt.encode(to_enconde, getenv("SECRET_KEY"), algorithm=getenv("ALGORITHM"))
+
+    async def get_token_user(self, email: EmailStr, password: str) -> Token:
 
         user = await self.authenticate_user(email, password)
         if not user:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Usuário não encontrado!")
 
-        return Token(access_token=self.generate_access_token(email))
+        return Token(access_token=self.generate_access_token(email), refresh_token=self.generate_refresh_token(email))
 
     async def authenticate_user(self, email: EmailStr, password: str) -> User | None:
 
@@ -105,33 +112,38 @@ class AuthController:
             await self.repository.delete_temporary_user(temporary_user)
             return
 
-    async def validate_and_get_email_from_token(self, token: str) -> str:
-        payload = jwt.decode(token, getenv("SECRET_KEY"), algorithms=[getenv("ALGORITHM")])
-        issued_at = payload.get("iat")
-        if not issued_at:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    async def validate_and_get_email_from_refresh_token(self, token: str) -> str:
 
+        try:
+            payload = jwt.decode(token, getenv("SECRET_KEY"), algorithms=[getenv("ALGORITHM")])
+        except JWTError:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token!")
+        exp = payload.get("exp")
+        if not exp:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token!")
+
+        expiration_time = payload.get('exp')
         current_time = datetime.now(timezone.utc)
-        token_age = current_time - datetime.fromtimestamp(issued_at, timezone.utc)
 
-        if token_age.total_seconds() > int(getenv("REFRESH_TOKEN_EXPIRE_MINUTES")) * 60:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired")
+        if current_time > datetime.fromtimestamp(expiration_time, timezone.utc):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expirado!")
 
         email = payload.get("sub")
         if not email:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials!")
 
         user = await self.repository.get_user_by_email(email)
         if not user or not user.is_active:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not find user")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not find user!")
 
         return email
 
     async def refresh_tokens(self, token) -> Token:
 
-        email = await self.validate_and_get_email_from_token(token)
+        email = await self.validate_and_get_email_from_refresh_token(token)
         new_access_token = self.generate_access_token(email)
-        return Token(access_token=new_access_token)
+        new_refresh_token = self.generate_refresh_token(email)
+        return Token(access_token=new_access_token, refresh_token=new_refresh_token)
 
     def generate_temporary_password(self):
         caracteres = string.digits
@@ -146,7 +158,11 @@ class AuthController:
 
         return hash.decode('utf-8')
 
-    async def recovery_password(self, user: User) -> None:
+    async def recovery_password(self, user_email: str) -> None:
+
+        user = await self.repository.get_user_by_email(user_email)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Usuário não encontrado!")
 
         temporary_password = self.generate_temporary_password()
         temporary_password_hashed = self._hash_password(temporary_password)

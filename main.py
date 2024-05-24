@@ -59,18 +59,18 @@ async def login(
     password: Annotated[str, Body()],
     email: Annotated[EmailStr | None, Body()],
     controller: Annotated[AuthController, Depends(AuthController.inject_controller)]
-):
+) -> Token:
 
-    return await controller.get_acess_token_user(email=email, password=password)
+    return await controller.get_token_user(email=email, password=password)
 
 
 @app.post('/refresh-token', response_model=Token)
 async def refresh_token(
-    token: Annotated[str, Body(embed=True)],
+    refresh_token: Annotated[str, Body(embed=True)],
     controller: Annotated[AuthController, Depends(AuthController.inject_controller)]
 ):
 
-    return await controller.refresh_tokens(token=token)
+    return await controller.refresh_tokens(token=refresh_token)
 
 
 @app.get("/confirm-email/{temporary_user_id}")
@@ -94,12 +94,12 @@ async def post_users(
     return await controller.create_temporary_user(user)
 
 
-@app.post("/recovery-password", status_code=status.HTTP_200_OK)
-async def post_recovery_password(
-    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+@app.get("/recovery-password/{user_email}", status_code=status.HTTP_200_OK)
+async def get_recovery_password(
+    user_email: str,
     controller: Annotated[AuthController, Depends(AuthController.inject_controller)]
 ):
-    return await controller.recovery_password(user)
+    return await controller.recovery_password(user_email)
 
 
 @app.post("/change-password", status_code=status.HTTP_200_OK)
