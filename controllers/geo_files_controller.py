@@ -4,6 +4,7 @@ from fastapi.exceptions import HTTPException
 
 from repositories.geo_repository import GeoRepository
 from schemas.geojson import GeoJSON
+from sentry_sdk import capture_exception
 
 
 class GeoFilesController:
@@ -30,8 +31,8 @@ class GeoFilesController:
         try:
             return await self.repository.get_polygon(table_name)
         except Exception as error:
-            response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-            return {"Internal Server Error": error}
+            capture_exception(error)
+            return HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error)
 
     async def get_raster(self, table_name: str, response: Response, x: int, y: int, z: int):
 
@@ -45,5 +46,5 @@ class GeoFilesController:
                 headers={"Content-Disposition": "attachment; filename=raster.png"}
             )
         except Exception as error:
-            response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-            return {"Internal Server Error": error}
+            capture_exception(error)
+            return HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error)
