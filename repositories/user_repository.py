@@ -32,3 +32,19 @@ class UserRepository:
         await self.db.commit()
         await self.db.refresh(db_user)
         return db_user
+
+    async def delete_temporary_user(self, temporary_user: models.TemporaryUser):
+        await self.db.delete(temporary_user)
+
+    async def create_log_email(self, content: str, to: str, sender: str, subject: str, has_error: bool, error_message: str):
+        db_log_email = models.LogsEmail(
+            content=content,
+            to=to,
+            sender=sender,
+            subject=subject,
+            has_error=has_error,
+            error_message=error_message
+        )
+        self.db.add(db_log_email)
+        await self.db.commit()
+        return await self.db.refresh(db_log_email)
