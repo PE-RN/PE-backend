@@ -85,13 +85,12 @@ async def test_refresh_token_user(async_client, user_repository):
 
     user = await user_repository.create_user(UserCreate(
         email=f"rodolfo{rand_str}@is-er.com.br", password=hash.decode('utf-8'), group_id=None, ocupation="pesquisador"))
-
     body = {"email": user.email, "password": password}
+    response_token = await async_client.post("/token", json=body)
+    refresh_token = response_token.json()["refresh_token"]
 
     # Act
-    response_token = await async_client.post("/token", json=body)
-    access_token = response_token.json()["access_token"]
-    response = await async_client.post("/refresh-token", json={"token": access_token})
+    response = await async_client.post("/refresh-token", json={"refresh_token": refresh_token})
 
     # Assert
     assert response.status_code == 200
@@ -136,12 +135,9 @@ async def test_recovery_password(async_client, user_repository):
     rand_str = ''.join(random.choices(string.ascii_lowercase, k=6))
     user = await user_repository.create_user(UserCreate(
         email=f"rodolfo{rand_str}@is-er.com.br", password=hash.decode('utf-8'), group_id=None, ocupation="pesquisador"))
-    body = {"email": user.email, "password": password}
-    response_token = await async_client.post("/token", json=body)
-    access_token = response_token.json()["access_token"]
 
     # Act
-    response = await async_client.post("/recovery-password", json={}, headers={"Authorization": f"Bearer {access_token}"})
+    response = await async_client.get(f"/recovery-password/{user.email}")
 
     # Assert
     assert response.status_code == 200
