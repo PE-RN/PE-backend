@@ -109,7 +109,7 @@ async def test_change_password(async_client, user_repository):
     rand_str = ''.join(random.choices(string.ascii_lowercase, k=6))
 
     user = await user_repository.create_user(UserCreate(
-        email=f"rodolfo{rand_str}@is-er.com.br", password=hash.decode('utf-8'), group_id=None, ocupation="Bolsista"))
+        email=f"rodolfo{rand_str}@is-er.com.br", password=hash.decode('utf-8'), group_id=None, ocupation="pesquisador"))
 
     body = {"email": user.email, "password": password}
     response_token = await async_client.post("/token", json=body)
@@ -135,7 +135,7 @@ async def test_recovery_password(async_client, user_repository):
     hash = bcrypt.hashpw(bytes_pass, salt)
     rand_str = ''.join(random.choices(string.ascii_lowercase, k=6))
     user = await user_repository.create_user(UserCreate(
-        email=f"rodolfo{rand_str}@is-er.com.br", password=hash.decode('utf-8'), group_id=None, ocupation="Bolsista"))
+        email=f"rodolfo{rand_str}@is-er.com.br", password=hash.decode('utf-8'), group_id=None, ocupation="pesquisador"))
     body = {"email": user.email, "password": password}
     response_token = await async_client.post("/token", json=body)
     access_token = response_token.json()["access_token"]

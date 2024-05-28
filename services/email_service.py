@@ -2,6 +2,7 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import ssl
+from schemas.email import EmailMessage
 
 
 class EmailService:
@@ -38,17 +39,9 @@ class EmailService:
             server.quit()
             raise e
 
-    def send_account_confirmation_account(self, to_email: str, ocupation: str, link_url: str) -> None:
+    def send_email_account_confirmation(self, email_message: EmailMessage) -> None:
 
-        link_url = self._replace_safety_url_for_sender_pattern(link_url)
-        content = f'<h3 style="color:#0dace3;"> {ocupation.capitalize()} para confirmar seu email na plataforma por favor click  no link'
-        content += f' <a style="display: inline-block;" href="{link_url}">LINK</a> !! <h3>'
+        self._send_email(email_message.to_email, email_message.subject, email_message.html_content)
 
-        self._send_email(to_email, "Confirmação de email Plataforma Atlas", content)
-
-    def send_email_recovery_password(self, to_email: str, new_password: str) -> None:
-
-        content = '<h3 style="color:#0dace3;">você pode trocar esta senha futuramente usando a opção de troca, sua senha temporaria SENHA:'
-        content += f' <h2 style="color:black;">{new_password}<h2/><h3/>'
-
-        self._send_email(to_email, "Recuperação de senha Plataforma Atlas", content)
+    def send_email_recovery_password(self, email_message: EmailMessage) -> None:
+        self._send_email(email_message.to_email, email_message.subject, email_message.html_content)

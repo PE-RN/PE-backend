@@ -10,13 +10,16 @@ from fastapi import BackgroundTasks, Depends, Header, status
 from fastapi.exceptions import HTTPException
 from jose import JWTError, jwt
 from pydantic import EmailStr
+from sentry_sdk import capture_exception
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from repositories.auth_repository import AuthRepository
 from schemas.token import Token
+from schemas.email import EmailMessage
 from services.email_service import EmailService
 from sql_app.database import get_db
 from sql_app.models import User
+from asyncer import syncify
 
 
 class AuthController:
@@ -153,9 +156,10 @@ class AuthController:
 
         user.password = temporary_password_hashed
         await self.repository.update_user(user)
+        email_message = self._create_recovery_email_message(temporary_password, user.email)
 
         if getenv('ENVIRONMENT', 'local') != 'local':
-            self.background_tasks.add_task(self.email_service.send_email_recovery_password, to_email=user.email, new_password=temporary_password)
+            self.background_tasks.add_task(self._send_email_recovery_password_wrapper, email_message=email_message)
 
     async def change_password(self, user: User, actual_password: str, new_password: str) -> None:
 
@@ -165,3 +169,32 @@ class AuthController:
         new_password_hashed = self._hash_password(new_password)
         user.password = new_password_hashed
         await self.repository.update_user(user)
+
+    def _create_recovery_email_message(self, new_password, to_email) -> EmailMessage:
+
+        content = '<h3 style="color:#0dace3;">você pode trocar esta senha futuramente usando a opção de troca, sua senha temporaria SENHA:'
+        content += f' <h2 style="color:black;">{new_password}<h2/><h3/>'
+
+        return EmailMessage(to_email=to_email, subject="Recuperação de senha Plataforma Atlas", html_content=content)
+
+    def _send_email_recovery_password_wrapper(self, email_message: EmailMessage):
+        try:
+            self.email_service.send_email_recovery_password(email_message)
+            syncify(async_function=self.repository.create_log_email)(
+                subject=email_message.subject,
+                content=email_message.html_content,
+                to=email_message.to_email,
+                sender=getenv('EMAIL_SMTP'),
+                has_error=False,
+                error_message=None
+            )
+        except Exception as e:
+            capture_exception(e)
+            syncify(async_function=self.repository.create_log_email)(
+                subject=email_message.subject,
+                content=email_message.html_content,
+                to=email_message.to_email,
+                sender=getenv('EMAIL_SMTP'),
+                has_error=True,
+                error_message=str(e)
+            )
