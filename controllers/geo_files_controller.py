@@ -62,8 +62,8 @@ class GeoFilesController:
 
         await self._validate_geofile(table_name, 'polygon')
         try:
-            polygon_file = await self.repository.get_polygon_shp(table_name)
-            self.email_service.send_shape_email(email, polygon_file)
+            await self.repository.get_polygon_shp(table_name)
+            self.email_service.send_shape_email(email, f'table_name.zip')
 
         except Exception as error:
             capture_exception(error)
