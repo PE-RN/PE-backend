@@ -1,3 +1,4 @@
+from os import getenv
 from typing import Annotated
 
 from fastapi import Depends, status
@@ -8,13 +9,15 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from repositories.geo_repository import GeoRepository
 from schemas.geojson import GeoJSON
 from sentry_sdk import capture_exception
+from services.email_service import EmailService
 from sql_app.database import get_db
 
 
 class GeoFilesController:
 
-    def __init__(self, repository: GeoRepository):
+    def __init__(self, repository: GeoRepository, email_service: EmailService):
         self.repository = repository
+        self.email_service = email_service
 
     @staticmethod
     async def inject_controller(db: Annotated[AsyncSession, Depends(get_db)]):
@@ -54,3 +57,14 @@ class GeoFilesController:
             media_type="image/png",
             headers={"Content-Disposition": "attachment; filename=raster.png"}
         )
+
+    async def get_polygon_shp(self, table_name: str, email: str, ):
+
+        await self._validate_geofile(table_name, 'polygon')
+        try:
+            polygon_file = await self.repository.get_polygon_shp(table_name)
+            self.email_service.send_shape_email(email, polygon_file)
+
+        except Exception as error:
+            capture_exception(error)
+            return HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error)

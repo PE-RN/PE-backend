@@ -79,7 +79,6 @@ async def confirm_email(
     temporary_user_id: UUID,
     controller: Annotated[AuthController, Depends(AuthController.inject_controller)]
 ) -> None:
-
     return await controller.confirm_email(temporary_user_id=temporary_user_id)
 
 
@@ -91,7 +90,6 @@ async def post_users(
     user: UserCreate,
     controller: Annotated[UserController, Depends(UserController.inject_controller)]
 ):
-
     return await controller.create_temporary_user(user)
 
 
@@ -122,6 +120,15 @@ async def post_process_geo_processing(
 ):
 
     return await controller.process_geo_process(geoJSON, raster_name)
+
+
+@app.get("/geofiles/polygon/shapefile/{table_name}/{email}", status_code=status.HTTP_200_OK)
+async def get_shapefile(
+    table_name: str,
+    email: str,
+    controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)]
+):
+    return await controller.get_polygon_shp(table_name, email)
 
 
 @app.get("/process/raster/{raster_name}")

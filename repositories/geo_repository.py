@@ -11,6 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from schemas.geojson import GeoJSON
 from schemas.geometry import Geometry
+from sql_app.database import get_engine
 from sql_app.models import Geodata
 from sqlmodel import select
 
@@ -120,3 +121,13 @@ class GeoRepository:
         os.remove(temp_file.name)
 
         return dataset
+
+    async def get_polygon_shp(self, table_name) -> Geometry:
+
+        try:
+            engine = get_engine()
+            polygon = geopandas.read_postgis(f'select * from {table_name}', geom_col='geometry', con=engine)
+
+            return polygon.to_file('your_file.shp')
+        except Exception as e:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Internal Server Error: {e}')

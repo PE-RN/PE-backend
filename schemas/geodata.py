@@ -7,6 +7,7 @@ class Geodata(BaseModel):
     email: str
     ocupation: str
     group_id: int
+    geotype: str
 
     class config:
         orm_mode = True
@@ -20,3 +21,4 @@ class Geodata(Geodata):
     ocupation: str
     password: str
     group_id: int
+    geotype: str

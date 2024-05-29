@@ -45,3 +45,10 @@ class EmailService:
 
     def send_email_recovery_password(self, email_message: EmailMessage) -> None:
         self._send_email(email_message.to_email, email_message.subject, email_message.html_content)
+
+    def send_shape_email(self, to_email: str, shapefile) -> None:
+
+        content = '<h3 style="color:#0dace3;">Olá, já terminamos de processar o seu arquivo.</br> Em anexo estamos enviando seu arquivo shp.'
+        content += f' <h2 style="color:black;">Você precisará de um software de GIS para abrir o arquivo.<h2/><h3/>'
+
+        self._send_email(to_email, "Download de shapefile", content)
