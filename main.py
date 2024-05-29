@@ -113,14 +113,15 @@ async def post_change_password(
     return await controller.change_password(user, password, new_password)
 
 
-@app.post("/process/geo-processing")
+@app.post("/process/geo-processing/{raster_name}")
 async def post_process_geo_processing(
     geoJSON: GeoJSON,
+    raster_name: str,
     user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
     controller: Annotated[ProcessController, Depends(ProcessController.inject_controller)]
 ):
 
-    return await controller.process_geo_process(geoJSON)
+    return await controller.process_geo_process(geoJSON, raster_name)
 
 
 @app.get("/process/raster/{raster_name}")

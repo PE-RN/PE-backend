@@ -26,13 +26,12 @@ class ProcessController:
             if feature.geometry.type == 'Polygon' and feature.geometry.coordinates[0][-1] != feature.geometry.coordinates[0][0]:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect coordinates in Polygon")
 
-    async def process_geo_process(self, geoJSON: GeoJSON):
+    async def process_geo_process(self, geoJSON: GeoJSON, raster_name: str):
 
         self._validate_features(geoJSON)
 
-        tiff_name = os.getenv("TIFF_NAME_GEO_PROCESS")
         actual_path = os.getcwd()
-        path_tiff = actual_path + '/scripts/data/' + tiff_name
+        path_tiff = actual_path + '/scripts/data/' + raster_name
         return await clip_and_get_pixel_values(geoJSON.features, path_tiff)
 
     async def process_raster(self, raster_name: str):
