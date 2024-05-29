@@ -26,7 +26,7 @@ class AuthRepository:
         return users.first()
 
     async def create_log_email(self, content: str, to: str, sender: str, subject: str, has_error: bool, error_message: str | None = None):
-        log_email = models.LogsEmail(to=to, sender=sender, subject=subject, has_error=has_error, error_message=error_message)
+        log_email = models.LogsEmail(content=content, to=to, sender=sender, subject=subject, has_error=has_error, error_message=error_message)
         self.db.add(log_email)
         await self.db.commit()
         return await self.db.refresh(log_email)
@@ -35,3 +35,9 @@ class AuthRepository:
         statment = select(models.TemporaryUser).filter_by(id=temporary_user_id).fetch(1)
         users = await self.db.exec(statment)
         return users.first()
+
+    async def update_user(self, user: models.User):
+        self.db.add(user)
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user

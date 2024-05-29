@@ -20,15 +20,31 @@ class UserRepository:
         return users.first()
 
     async def create_temporary_user(self, user: UserCreate):
-        db_temporary_user = models.TemporaryUser(**user.model_dump())
+        db_temporary_user = models.TemporaryUser(**user.model_dump(exclude=['ocupation']), ocupation=user.ocupation.value)
         self.db.add(db_temporary_user)
         await self.db.commit()
         await self.db.refresh(db_temporary_user)
         return db_temporary_user
 
     async def create_user(self, user: UserCreate):
-        db_user = models.User(email=user.email, password=user.password, ocupation=user.ocupation, group_id=user.group_id)
+        db_user = models.User(email=user.email, password=user.password, ocupation=user.ocupation.value, group_id=user.group_id)
         self.db.add(db_user)
         await self.db.commit()
         await self.db.refresh(db_user)
         return db_user
+
+    async def delete_temporary_user(self, temporary_user: models.TemporaryUser):
+        await self.db.delete(temporary_user)
+
+    async def create_log_email(self, content: str, to: str, sender: str, subject: str, has_error: bool, error_message: str):
+        db_log_email = models.LogsEmail(
+            content=content,
+            to=to,
+            sender=sender,
+            subject=subject,
+            has_error=has_error,
+            error_message=error_message
+        )
+        self.db.add(db_log_email)
+        await self.db.commit()
+        return await self.db.refresh(db_log_email)
