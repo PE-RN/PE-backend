@@ -17,6 +17,7 @@ from sqlmodel import select
 from schemas.geojson import GeoJSON
 from schemas.geometry import Geometry
 from sql_app.models import Geodata
+from sqlmodel import select
 
 
 class GeoRepository:
