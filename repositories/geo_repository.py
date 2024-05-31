@@ -9,16 +9,17 @@ from os import getenv
 from osgeo import gdal
 from osgeo.gdal import Dataset
 from sqlalchemy import MetaData, Table, text
-from sqlalchemy.orm import Session
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from schemas.geojson import GeoJSON
 from schemas.geometry import Geometry
 from sql_app.models import Geodata
+from sqlmodel import select
 
 
 class GeoRepository:
 
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.db = db
 
     def upload_polygon(self, polygon: geopandas.GeoDataFrame, table_name: str, increment: bool = True, new_columns: list = None):
@@ -88,8 +89,10 @@ class GeoRepository:
         except Exception as e:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Internal Server Error: {e}')
 
-    async def validade_geofile(self, table_name) -> list:
-        return self.db.query(Geodata).filter(Geodata.name == table_name).with_entities(Geodata.name, Geodata.geotype).first()
+    async def validade_geofile(self, table_name):
+        query = select(Geodata.name, Geodata.geotype).filter_by(name=table_name).fetch(1)
+        data = await self.db.exec(query)
+        return data.first()
 
     async def get_raster_dataset(self, table_name) -> Dataset:
 

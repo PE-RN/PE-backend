@@ -1,12 +1,14 @@
-import os
+from typing import Annotated
 
-from fastapi import status
+from fastapi import Depends, status
 from fastapi.exceptions import HTTPException
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from repositories.geo_repository import GeoRepository
 from schemas.geojson import GeoJSON
 from scripts.create_raster_obj import read_raster_as_json
 from scripts.geo_processing import clip_and_get_pixel_values
+from sql_app.database import get_db
 
 
 class ProcessController:
@@ -14,8 +16,12 @@ class ProcessController:
     def __init__(self, repository: GeoRepository):
         self.repository = repository
 
-    def inject_controller():
-        return ProcessController()
+    @staticmethod
+    async def inject_controller(db: Annotated[AsyncSession, Depends(get_db)]):
+
+        return ProcessController(
+            repository=GeoRepository(db=db)
+        )
 
     def _validate_features(self, geoJSON: GeoJSON) -> None:
         for feature in geoJSON.features:
@@ -30,9 +36,8 @@ class ProcessController:
 
         self._validate_features(geoJSON)
 
-        actual_path = os.getcwd()
-        path_tiff = actual_path + '/scripts/data/' + raster_name
-        return await clip_and_get_pixel_values(geoJSON.features, path_tiff)
+        dataset = await self.repository.get_raster_dataset(raster_name)
+        return await clip_and_get_pixel_values(geoJSON.features, dataset)
 
     async def process_raster(self, raster_name: str):
 
