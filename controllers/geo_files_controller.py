@@ -1,10 +1,14 @@
-from fastapi import Response, status
+from typing import Annotated
+
+from fastapi import Depends, status
 from fastapi.responses import StreamingResponse
 from fastapi.exceptions import HTTPException
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from repositories.geo_repository import GeoRepository
 from schemas.geojson import GeoJSON
 from sentry_sdk import capture_exception
+from sql_app.database import get_db
 
 
 class GeoFilesController:
@@ -12,8 +16,12 @@ class GeoFilesController:
     def __init__(self, repository: GeoRepository):
         self.repository = repository
 
-    def inject_controller():
-        return GeoFilesController()
+    @staticmethod
+    async def inject_controller(db: Annotated[AsyncSession, Depends(get_db)]):
+
+        return GeoFilesController(
+            repository=GeoRepository(db=db)
+        )
 
     def _validate_geofile(self, table_name: str, type: str) -> tuple[bool, dict]:
 
@@ -25,7 +33,7 @@ class GeoFilesController:
         elif not geofile['geotype'] == type:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect type of geometry")
 
-    async def get_polygon(self, table_name: str, response: Response) -> GeoJSON:
+    async def get_polygon(self, table_name: str) -> GeoJSON:
 
         self._validate_geofile(table_name, 'polygon')
         try:
@@ -34,7 +42,7 @@ class GeoFilesController:
             capture_exception(error)
             return HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error)
 
-    async def get_raster(self, table_name: str, response: Response, x: int, y: int, z: int):
+    async def get_raster(self, table_name: str, x: int, y: int, z: int):
 
         await self._validate_geofile(table_name, 'raster')
         try:
