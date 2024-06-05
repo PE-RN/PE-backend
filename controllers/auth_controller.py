@@ -8,7 +8,7 @@ from uuid import UUID
 import bcrypt
 from fastapi import BackgroundTasks, Depends, Header, status
 from fastapi.exceptions import HTTPException
-from jose import JWTError, jwt
+from jose import JWTError, jwt, ExpiredSignatureError
 from pydantic import EmailStr
 from sentry_sdk import capture_exception
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -52,25 +52,27 @@ class AuthController:
         authorization: Annotated[str, Header()]
     ) -> User:
 
-        token = authorization.split(' ')[1]
         try:
+            token_type, token = authorization.split(' ')
+            if token_type != getenv('TOKEN_TYPE'):
+                raise JWTError
             payload = jwt.decode(token, getenv("SECRET_KEY"), algorithms=[getenv("ALGORITHM")])
-            current_time = datetime.now(timezone.utc)
-
-            expiration_time = payload.get('exp')
-            if current_time > datetime.fromtimestamp(expiration_time, timezone.utc):
-                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expirado!")
             email = payload.get('sub')
+            if not email:
+                raise JWTError
             user = await repository.get_user_by_email(email)
-
             return user
-
-        except JWTError:
+        except ExpiredSignatureError:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expirado!")
+        except (JWTError, ValueError):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido!")
 
     def verify_password_hash(self, password: str, hashed_password: str) -> bool:
 
-        return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
+        try:
+            return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
+        except ValueError:
+            return False
 
     def generate_access_token(self, email: str) -> str:
 
@@ -92,7 +94,7 @@ class AuthController:
 
         user = await self.authenticate_user(email, password)
         if not user:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Usuário não encontrado!")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado!")
 
         return Token(access_token=self.generate_access_token(email), refresh_token=self.generate_refresh_token(email))
 
@@ -109,35 +111,30 @@ class AuthController:
         if temporary_user:
             user = await self.repository.get_user_by_email(temporary_user.email)
             if user:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Usuário já confirmado!")
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Usuário já confirmado!")
 
             await self.repository.create_user_from_temporary(temporary_user)
             await self.repository.delete_temporary_user(temporary_user)
             return
 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado!")
+
     async def validate_and_get_email_from_refresh_token(self, token: str) -> str:
 
         try:
             payload = jwt.decode(token, getenv("SECRET_KEY"), algorithms=[getenv("ALGORITHM")])
-        except JWTError:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token!")
-        exp = payload.get("exp")
-        if not exp:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token!")
-
-        expiration_time = payload.get('exp')
-        current_time = datetime.now(timezone.utc)
-
-        if current_time > datetime.fromtimestamp(expiration_time, timezone.utc):
+        except ExpiredSignatureError:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expirado!")
+        except JWTError:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido!")
 
         email = payload.get("sub")
         if not email:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials!")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Não foi possível validar as credencias!")
 
         user = await self.repository.get_user_by_email(email)
         if not user or not user.is_active:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not find user!")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuário não encontrado!")
 
         return email
 
@@ -150,7 +147,7 @@ class AuthController:
 
     def generate_temporary_password(self):
         caracteres = string.digits
-        senha = ''.join(secrets.choice(caracteres) for _ in range(7))
+        senha = ''.join(secrets.choice(caracteres) for _ in range(9))
         return senha
 
     def _hash_password(self, password: str) -> str:
@@ -165,7 +162,7 @@ class AuthController:
 
         user = await self.repository.get_user_by_email(user_email)
         if not user:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Usuário não encontrado!")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado!")
 
         temporary_password = self.generate_temporary_password()
         temporary_password_hashed = self._hash_password(temporary_password)
@@ -173,7 +170,6 @@ class AuthController:
         user.password = temporary_password_hashed
         await self.repository.update_user(user)
         email_message = self._create_recovery_email_message(temporary_password, user.email)
-
         if getenv('ENVIRONMENT', 'local') != 'local':
             self.background_tasks.add_task(self._send_email_recovery_password_wrapper, email_message=email_message)
 
