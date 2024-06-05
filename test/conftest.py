@@ -30,7 +30,7 @@ async def get_local_db():
 app.dependency_overrides[get_db] = get_local_db
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="module", autouse=True)
 async def create_test_database():
     async with async_engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
