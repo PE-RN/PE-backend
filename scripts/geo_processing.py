@@ -3,14 +3,13 @@ import json
 import numpy as np
 from asyncer import asyncify
 from osgeo import gdal, ogr, osr
+from osgeo.gdal import Dataset
 
 from schemas.feature import Feature
 
 
-async def clip_and_get_pixel_values(features: list[Feature], input_tiff_path):
+async def clip_and_get_pixel_values(features: list[Feature], src_ds: Dataset):
 
-    # Load the source raster
-    src_ds = gdal.Open(input_tiff_path)
     if not src_ds:
         raise RuntimeError("Could not open source dataset")
 

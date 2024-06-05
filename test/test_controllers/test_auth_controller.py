@@ -111,7 +111,7 @@ async def test_get_user_from_token(auth_repository):
     rand_str = ''.join(random.choices(string.ascii_lowercase, k=6))
     user_email = f'test{rand_str}@example.com'
     to_encode = {"sub": user_email}
-    acess_token_expires_time = datetime.now(timezone.utc) + timedelta(seconds=200)
+    acess_token_expires_time = datetime.now(timezone.utc) + timedelta(hours=6)
     to_encode.update({"exp": acess_token_expires_time})
     access_token = f'Bearer {jwt.encode(to_encode, getenv("SECRET_KEY"), algorithm=getenv("ALGORITHM"))}'
     user = models.User(

@@ -5,11 +5,12 @@ from uuid import UUID
 
 import sentry_sdk
 from dotenv import load_dotenv
-from fastapi import Body, Depends, FastAPI, status
+from fastapi import Body, Depends, FastAPI, status, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import EmailStr
 
 from controllers.auth_controller import AuthController
+from controllers.geo_files_controller import GeoFilesController
 from controllers.process_controller import ProcessController
 from controllers.user_controller import UserController
 from schemas.geojson import GeoJSON
@@ -112,14 +113,15 @@ async def post_change_password(
     return await controller.change_password(user, password, new_password)
 
 
-@app.post("/process/geo-processing")
+@app.post("/process/geo-processing/{raster_name}")
 async def post_process_geo_processing(
     geoJSON: GeoJSON,
+    raster_name: str,
     user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
     controller: Annotated[ProcessController, Depends(ProcessController.inject_controller)]
 ):
 
-    return await controller.process_geo_process(geoJSON)
+    return await controller.process_geo_process(geoJSON, raster_name)
 
 
 @app.get("/process/raster/{raster_name}")
@@ -128,3 +130,30 @@ async def post_process_raster(
     controller: Annotated[ProcessController, Depends(ProcessController.inject_controller)]
 ):
     return await controller.process_raster(raster_name)
+
+
+@app.get("/sentry-debug")
+async def trigger_error():
+    division_by_zero = 1 / 0
+    return division_by_zero
+
+
+@app.get("/geofiles/polygon/{table_name}")
+async def get_geofiles_polygon(
+    table_name: str,
+    response: Response,
+    controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)]
+):
+    return await controller.get_polygon(table_name=table_name, response=response)
+
+
+@app.get("/geofiles/raster/{z}/{x}/{y}/{table_name}")
+async def get_geofiles_raster(
+    table_name: str,
+    x,
+    y,
+    z,
+    response: Response,
+    controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)]
+):
+    return await controller.get_raster(table_name=table_name, response=response, x=x, y=y, z=z)
