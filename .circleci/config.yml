@@ -18,12 +18,14 @@ jobs:
       - run:
           name: Run Lint
           command: |
+            pip install flake8
             flake8 .
       
       # Execução do Bandit para análise de segurança
       - run:
           name: Run Bandit
           command: |
+            pip install bandit
             bandit -c bandit.yaml -r . || (echo "Bandit found issues!" && false)
       # Instalação de dependências
       - run:
@@ -35,7 +37,7 @@ jobs:
             mamba install pip gdal rasterio -n atlas -c conda-forge --yes
             echo 'export PATH="/opt/conda/envs/atlas/bin:$PATH"' >> $BASH_ENV
             pip install -r requirements.txt
-            pip install pytest flake8 bandit
+            pip install pytest
       # Execução dos testes
       - run:
           name: Run Tests
