@@ -23,36 +23,34 @@ class GeoFilesController:
             repository=GeoRepository(db=db)
         )
 
-    def _validate_geofile(self, table_name: str, type: str) -> tuple[bool, dict]:
+    async def _validate_geofile(self, table_name: str, type: str) -> None:
 
-        geofile = self.repository.validade_geofile(table_name)
+        geofile = await self.repository.get_geofile_by_name(table_name)
         if geofile is None:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Geofile doesn't exist")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Geofile não existe!")
         elif not geofile['name'] or not geofile['geotype']:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Geofile name or type is missing")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Geofile nome ou tipo faltando!")
         elif not geofile['geotype'] == type:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect type of geometry")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tipo incorreto de geometria!")
 
     async def get_polygon(self, table_name: str) -> GeoJSON:
 
-        self._validate_geofile(table_name, 'polygon')
+        await self._validate_geofile(table_name, 'polygon')
         try:
-            return await self.repository.get_polygon(table_name)
+            return await self.repository.get_polygon_by_name(table_name)
         except Exception as error:
             capture_exception(error)
-            return HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error)
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error)
 
     async def get_raster(self, table_name: str, x: int, y: int, z: int):
 
         await self._validate_geofile(table_name, 'raster')
-        try:
-            raster_file = await self.repository.get_raster(table_name, x, y, z)
+        raster_file = await self.repository.get_raster(table_name, x, y, z)
+        if not raster_file:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Raster file não processado!')
 
-            return StreamingResponse(
-                raster_file,
-                media_type="image/png",
-                headers={"Content-Disposition": "attachment; filename=raster.png"}
-            )
-        except Exception as error:
-            capture_exception(error)
-            return HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error)
+        return StreamingResponse(
+            raster_file,
+            media_type="image/png",
+            headers={"Content-Disposition": "attachment; filename=raster.png"}
+        )

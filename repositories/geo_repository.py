@@ -3,8 +3,6 @@ import subprocess
 import tempfile
 
 import geopandas
-from fastapi import status
-from fastapi.exceptions import HTTPException
 from os import getenv
 from osgeo import gdal
 from osgeo.gdal import Dataset
@@ -69,44 +67,44 @@ class GeoRepository:
         self.db.execute(text(raster_table_update))
         self.db.commit()
 
-    async def get_polygon(self, table_name) -> GeoJSON:
+    async def get_polygon_by_name(self, table_name) -> GeoJSON:
 
         polygon = geopandas.read_postgis(f'select * from {table_name}', geom_col='geometry', con=self.db.bind)
         return polygon.to_json()
 
-    async def get_raster(self, table_name, x, y, z) -> Geometry:
+    async def get_raster(self, table_name, x, y, z) -> Geometry | None:
 
-        try:
-            sql_query = f"""
-                SELECT ST_AsGDALRaster(ST_Union(ST_ColorMap(rast, 1, 'bluered')), 'PNG') AS rast_data
-                FROM {table_name}
-                WHERE ST_Intersects(rast, ST_Transform(ST_TileEnvelope({z}, {x}, {y}), 4674));
-            """
-            result = await self.db.execute(text(sql_query))
-            raster_datas = result.fetchone()
+        sql_query = f"""
+            SELECT ST_AsGDALRaster(ST_Union(ST_ColorMap(rast, 1, 'bluered')), 'PNG') AS rast_data
+            FROM {table_name}
+            WHERE ST_Intersects(rast, ST_Transform(ST_TileEnvelope({z}, {x}, {y}), 4674));
+        """
+        result = await self.db.execute(text(sql_query))
+        raster_datas = result.fetchone()
 
+        if raster_datas:
             return raster_datas[0]
-        except Exception as e:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Internal Server Error: {e}')
+        else:
+            return None
 
-    async def validade_geofile(self, table_name):
+    async def get_geofile_by_name(self, table_name):
+
         query = select(Geodata.name, Geodata.geotype).filter_by(name=table_name).fetch(1)
         data = await self.db.exec(query)
         return data.first()
 
-    async def get_raster_dataset(self, table_name) -> Dataset:
+    async def get_raster_dataset(self, table_name) -> Dataset | None:
 
-        try:
-            sql_query = f"SELECT ST_AsGDALRaster(ST_Union(rast), 'GTiff') AS rast_data FROM {table_name};"
-            result = await self.db.execute(text(sql_query))
-            raster_datas = result.fetchone()
+        sql_query = f"SELECT ST_AsGDALRaster(ST_Union(rast), 'GTiff') AS rast_data FROM {table_name};"
+        result = await self.db.execute(text(sql_query))
+        raster_datas = result.fetchone()
+        if not raster_datas:
+            return None
 
-            with tempfile.NamedTemporaryFile(suffix=".tif", delete=False) as temp_file:
-                temp_file.write(raster_datas[0])
+        with tempfile.NamedTemporaryFile(suffix=".tif", delete=False) as temp_file:
+            temp_file.write(raster_datas[0])
 
-            dataset = gdal.Open(temp_file.name)
-            os.remove(temp_file.name)
+        dataset = gdal.Open(temp_file.name)
+        os.remove(temp_file.name)
 
-            return dataset
-        except Exception as e:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Internal Server Error: {e}')
+        return dataset
