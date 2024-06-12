@@ -74,6 +74,9 @@ class GeoRepository:
 
     async def get_raster(self, table_name, x, y, z) -> Geometry | None:
 
+        sql_query = "set postgis.gdal_enabled_drivers = 'ENABLE_ALL';"
+        await self.db.execute(text(sql_query))
+
         sql_query = f"""
             SELECT ST_AsGDALRaster(ST_Union(ST_ColorMap(rast, 1, 'bluered')), 'PNG') AS rast_data
             FROM {table_name}
@@ -95,11 +98,12 @@ class GeoRepository:
 
     async def get_raster_dataset(self, table_name) -> Dataset | None:
 
+        sql_query = "set postgis.gdal_enabled_drivers = 'ENABLE_ALL';"
+        await self.db.execute(text(sql_query))
+
         sql_query = f"SELECT ST_AsGDALRaster(ST_Union(rast), 'GTiff') AS rast_data FROM {table_name};"
         result = await self.db.execute(text(sql_query))
         raster_datas = result.fetchone()
-        if not raster_datas:
-            return None
 
         with tempfile.NamedTemporaryFile(suffix=".tif", delete=False) as temp_file:
             temp_file.write(raster_datas[0])

@@ -17,7 +17,7 @@ async def test_token_fake_user(async_client):
     response = await async_client.post("/token", json=body)
 
     # Assert
-    assert response.status_code == 400
+    assert response.status_code == 404
     assert response.json() == {"detail": "Usuário não encontrado!"}
 
 
