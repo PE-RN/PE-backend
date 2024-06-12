@@ -105,6 +105,9 @@ class GeoRepository:
         result = await self.db.execute(text(sql_query))
         raster_datas = result.fetchone()
 
+        if not raster_datas:
+            return None
+
         with tempfile.NamedTemporaryFile(suffix=".tif", delete=False) as temp_file:
             temp_file.write(raster_datas[0])
 
