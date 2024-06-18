@@ -24,6 +24,7 @@ class ProcessController:
         )
 
     def _validate_features(self, geoJSON: GeoJSON) -> None:
+
         for feature in geoJSON.features:
             if not (feature.geometry.type in {"Polygon", "MultiPolygon"}):
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Type of geometry not supported")
@@ -37,9 +38,13 @@ class ProcessController:
         self._validate_features(geoJSON)
 
         dataset = await self.repository.get_raster_dataset(raster_name)
+        if not dataset:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Problemas no processamento!')
         return await clip_and_get_pixel_values(geoJSON.features, dataset)
 
     async def process_raster(self, raster_name: str):
 
         dataset = await self.repository.get_raster_dataset(raster_name)
+        if not dataset:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Problemas no processamento!')
         return await read_raster_as_json(dataset)
