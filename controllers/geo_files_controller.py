@@ -58,12 +58,10 @@ class GeoFilesController:
             headers={"Content-Disposition": "attachment; filename=raster.png"}
         )
 
-    async def get_polygon_shp(self, table_name: str, email: str, ):
+    async def get_geofile_download(self, table_name: str):
 
-        await self._validate_geofile(table_name, 'polygon')
         try:
-            await self.repository.get_polygon_shp(table_name)
-            self.email_service.send_shape_email(email, f'table_name.zip')
+            return await self.repository.get_polygon_shp(table_name)
 
         except Exception as error:
             capture_exception(error)

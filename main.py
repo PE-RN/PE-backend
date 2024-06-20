@@ -122,13 +122,12 @@ async def post_process_geo_processing(
     return await controller.process_geo_process(geoJSON, raster_name)
 
 
-@app.get("/geofiles/polygon/shapefile/{table_name}/{email}", status_code=status.HTTP_200_OK)
-async def get_shapefile(
+@app.get("/geofiles/download/{table_name}", status_code=status.HTTP_200_OK)
+async def get_file_download(
     table_name: str,
-    email: str,
     controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)]
 ):
-    return await controller.get_polygon_shp(table_name, email)
+    return await controller.get_geofile_download(table_name)
 
 
 @app.get("/process/raster/{raster_name}")

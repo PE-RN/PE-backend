@@ -46,6 +46,7 @@ class GeoRepository:
         increment: bool = True,
         new_columns: list = None
     ) -> None:
+
         table_name = table_name.replace("-", "_")
         # Drop the previous table if isnt to increment
         if not increment:
@@ -125,29 +126,8 @@ class GeoRepository:
 
         return dataset
 
-    async def get_polygon_shp(self, table_name) -> Geometry:
+    async def get_polygon_shp(self, table_name) -> str:
 
-        try:
-            engine = get_engine()
-            polygon = geopandas.read_postgis(f'select * from {table_name}', geom_col='geometry', con=engine)
-            polygon.to_file(f'{table_name}.shp')
-
-            file_names = [f'{table_name}.cpg', f'{table_name}.dbf', f'{table_name}.prj', f'{table_name}.shp', f'{table_name}.shx']
-
-            compression = zipfile.ZIP_DEFLATED
-            zf = zipfile.ZipFile(f'{table_name}.zip', mode="w")
-            try:
-                for file_name in file_names:
-                    zf.write(file_name, file_name, compress_type=compression)
-
-                    file_to_rem = pathlib.Path(file_name)
-                    file_to_rem.unlink()
-            except FileNotFoundError:
-                print("An error occurred")
-            finally:
-                # Don't forget to close the file!
-                zf.close()
-
-            return
-        except Exception as e:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Internal Server Error: {e}')
+        query = select(Geodata.url_acess).filter_by(name=table_name).fetch(1)
+        data = await self.db.exec(query)
+        return data.first()
