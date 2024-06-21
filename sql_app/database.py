@@ -6,7 +6,7 @@ from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 async_engine = create_async_engine(
-    getenv('DATABASE_URL', 'postgresql+asyncpg://postgres:postgres@localhost:5432/atlas')
+    getenv('DATABASE_URL', 'postgresql+asyncpg://postgres:cd4bCgACc5a15eddEF22FG5eGeA1adAa@roundhouse.proxy.rlwy.net:32842/atlas')
 )
 SessionLocal = sessionmaker(
     autocommit=False, autoflush=False, bind=async_engine, class_=AsyncSession)

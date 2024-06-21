@@ -14,6 +14,19 @@ jobs:
     
     steps:
       - checkout
+      # Execução de lint
+      - run:
+          name: Run Lint
+          command: |
+            pip install flake8
+            flake8 .
+      
+      # Execução do Bandit para análise de segurança
+      - run:
+          name: Run Bandit
+          command: |
+            pip install bandit
+            bandit -c bandit.yaml -r . || (echo "Bandit found issues!" && false)
       # Instalação de dependências
       - run:
           name: Install Dependencies
@@ -24,7 +37,7 @@ jobs:
             mamba install pip gdal rasterio -n atlas -c conda-forge --yes
             echo 'export PATH="/opt/conda/envs/atlas/bin:$PATH"' >> $BASH_ENV
             pip install -r requirements.txt
-            pip install pytest flake8 bandit
+            pip install pytest
       # Execução dos testes
       - run:
           name: Run Tests
@@ -35,19 +48,8 @@ jobs:
             export ACCESS_TOKEN_EXPIRE_MINUTES=60
             export REFRESH_TOKEN_EXPIRE_MINUTES=1440
             export TIFF_NAME_GEO_PROCESS=RN_500M.tif
+            export TOKEN_TYPE=Bearer
             pytest test
-      
-      # Execução de lint
-      - run:
-          name: Run Lint
-          command: |
-            flake8 .
-      
-      # Execução do Bandit para análise de segurança
-      - run:
-          name: Run Bandit
-          command: |
-            bandit -c bandit.yaml -r . || (echo "Bandit found issues!" && false)
 
   
 workflows:

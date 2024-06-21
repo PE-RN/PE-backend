@@ -1,12 +1,11 @@
+from osgeo.gdal import Dataset
 import numpy as np
-from osgeo import gdal
 
 
-async def read_raster_as_json(input_tiff_path):
-    # Open the raster file
-    ds = gdal.Open(input_tiff_path)
+async def read_raster_as_json(ds: Dataset):
+
     if not ds:
-        raise FileNotFoundError(f"Failed to open file: {input_tiff_path}")
+        raise FileNotFoundError("Failed to open file")
 
     # Get the first band
     band = ds.GetRasterBand(1)
