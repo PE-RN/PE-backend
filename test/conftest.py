@@ -35,6 +35,7 @@ app.dependency_overrides[get_db] = get_local_db
 async def load_do_env():
     load_dotenv(find_dotenv())
 
+
 @pytest.fixture(scope="module", autouse=True)
 async def create_test_database():
     async with async_engine.begin() as conn:
