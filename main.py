@@ -4,7 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 import sentry_sdk
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 from fastapi import Body, Depends, FastAPI, status, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import EmailStr
@@ -24,8 +24,7 @@ from sql_app.database import init_db
 async def lifespan(app: FastAPI):
 
     if os.getenv('ENVIRONMENT', 'local') not in {'production', 'development'}:
-        load_dotenv('.env')
-
+        load_dotenv(find_dotenv())
     if os.getenv('ENVIRONMENT') in {'production', 'development'}:
         sentry_sdk.init(
             dsn="https://f758514d23ea1004b84fcacf3fd3e70e@o4507067706245120.ingest.us.sentry.io/4507067723939840",

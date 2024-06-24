@@ -7,6 +7,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from repositories.user_repository import UserRepository
 from repositories.auth_repository import AuthRepository
+from dotenv import load_dotenv, find_dotenv
 
 from main import app
 from sql_app.database import get_db
@@ -29,6 +30,10 @@ async def get_local_db():
 
 app.dependency_overrides[get_db] = get_local_db
 
+
+@pytest.fixture(scope="module", autouse=True)
+async def load_do_env():
+    load_dotenv(find_dotenv())
 
 @pytest.fixture(scope="module", autouse=True)
 async def create_test_database():
