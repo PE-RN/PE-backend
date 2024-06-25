@@ -13,9 +13,11 @@ from controllers.auth_controller import AuthController
 from controllers.geo_files_controller import GeoFilesController
 from controllers.process_controller import ProcessController
 from controllers.user_controller import UserController
+from controllers.media_controller import MediaController
 from schemas.geojson import GeoJSON
 from schemas.token import Token
 from schemas.user import UserCreate
+from schemas.media import CreatePdf, CreateVideo
 from sql_app import models
 from sql_app.database import init_db
 
@@ -157,3 +159,68 @@ async def get_geofiles_raster(
     controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)]
 ):
     return await controller.get_raster(table_name=table_name, response=response, x=x, y=y, z=z)
+
+
+@app.post("/media/pdf",
+          response_model=models.PdfFile,
+          response_model_exclude={"updated_at", "deleted_at"})
+async def post_pdf(
+    pdf: CreatePdf,
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
+
+):
+    return await controller.create_pdf(pdf)
+
+
+@app.get("/media/pdf/{pdf_id}",
+         response_model=models.PdfFile,
+         response_model_exclude={"updated_at", "deleted_at"})
+async def get_pdf(
+    pdf_id: str,
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
+):
+    return await controller.get_pdf(pdf_id)
+
+
+@app.get("/media/pdf", response_model=list[models.PdfFile])
+async def list_pdf(
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
+
+):
+    return await controller.list_pdf()
+
+
+@app.post("/media/video",
+          response_model=models.Video,
+          response_model_exclude={"updated_at", "deleted_at"})
+async def post_video(
+    video: CreateVideo,
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
+
+):
+    return await controller.create_video(video)
+
+
+@app.get("/media/video/{video_id}",
+         response_model=models.Video,
+         response_model_exclude={"updated_at", "deleted_at"})
+async def get_video(
+    video_id: str,
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
+):
+    return await controller.get_video(video_id)
+
+
+@app.get("/media/video",
+         response_model=list[models.Video])
+async def list_video(
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
+
+):
+    return await controller.list_video()

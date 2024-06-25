@@ -44,4 +44,5 @@ class EmailService:
         self._send_email(email_message.to_email, email_message.subject, email_message.html_content)
 
     def send_email_recovery_password(self, email_message: EmailMessage) -> None:
+
         self._send_email(email_message.to_email, email_message.subject, email_message.html_content)
