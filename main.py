@@ -156,3 +156,11 @@ async def get_geofiles_raster(
     controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)]
 ):
     return await controller.get_raster(table_name=table_name, response=response, x=x, y=y, z=z)
+
+
+@app.get("/geofiles/download/{table_name}", status_code=status.HTTP_200_OK)
+async def get_file_download(
+    table_name: str,
+    controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)]
+):
+    return await controller.get_geofile_download(table_name)
