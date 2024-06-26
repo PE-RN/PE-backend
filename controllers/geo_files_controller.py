@@ -54,3 +54,12 @@ class GeoFilesController:
             media_type="image/png",
             headers={"Content-Disposition": "attachment; filename=raster.png"}
         )
+
+    async def get_geofile_download(self, table_name: str):
+
+        try:
+            return await self.repository.get_geofile_download(table_name)
+
+        except Exception as error:
+            capture_exception(error)
+            return HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error)

@@ -154,3 +154,4 @@ class Geodata(SQLModel, table=True):
     description: str
     origin_name: str
     url_acess: str
+    geotype: str

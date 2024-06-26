@@ -223,3 +223,11 @@ async def list_video(
 
 ):
     return await controller.list_video()
+
+
+@app.get("/geofiles/download/{table_name}", status_code=status.HTTP_200_OK)
+async def get_file_download(
+    table_name: str,
+    controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)]
+):
+    return await controller.get_geofile_download(table_name)
