@@ -4,7 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 import sentry_sdk
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 from fastapi import Body, Depends, FastAPI, status, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import EmailStr
@@ -13,9 +13,11 @@ from controllers.auth_controller import AuthController
 from controllers.geo_files_controller import GeoFilesController
 from controllers.process_controller import ProcessController
 from controllers.user_controller import UserController
+from controllers.media_controller import MediaController
 from schemas.geojson import GeoJSON
 from schemas.token import Token
 from schemas.user import UserCreate
+from schemas.media import CreatePdf, CreateVideo
 from sql_app import models
 from sql_app.database import init_db
 
@@ -24,8 +26,7 @@ from sql_app.database import init_db
 async def lifespan(app: FastAPI):
 
     if os.getenv('ENVIRONMENT', 'local') not in {'production', 'development'}:
-        load_dotenv('.env')
-
+        load_dotenv(find_dotenv())
     if os.getenv('ENVIRONMENT') in {'production', 'development'}:
         sentry_sdk.init(
             dsn="https://f758514d23ea1004b84fcacf3fd3e70e@o4507067706245120.ingest.us.sentry.io/4507067723939840",
@@ -48,7 +49,7 @@ app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8000", "https://plataforma-energias-rn-production.up.railway.app/"],  # Allows only requests from localhost:8000
+    allow_origins=["http://localhost:8000", "https://plataforma-energias-rn-production.up.railway.app"],
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
@@ -157,3 +158,76 @@ async def get_geofiles_raster(
     controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)]
 ):
     return await controller.get_raster(table_name=table_name, response=response, x=x, y=y, z=z)
+
+
+@app.post("/media/pdf",
+          response_model=models.PdfFile,
+          response_model_exclude={"updated_at", "deleted_at"})
+async def post_pdf(
+    pdf: CreatePdf,
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
+
+):
+    return await controller.create_pdf(pdf)
+
+
+@app.get("/media/pdf/{pdf_id}",
+         response_model=models.PdfFile,
+         response_model_exclude={"updated_at", "deleted_at"})
+async def get_pdf(
+    pdf_id: str,
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
+):
+    return await controller.get_pdf(pdf_id)
+
+
+@app.get("/media/pdf", response_model=list[models.PdfFile])
+async def list_pdf(
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
+
+):
+    return await controller.list_pdf()
+
+
+@app.post("/media/video",
+          response_model=models.Video,
+          response_model_exclude={"updated_at", "deleted_at"})
+async def post_video(
+    video: CreateVideo,
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
+
+):
+    return await controller.create_video(video)
+
+
+@app.get("/media/video/{video_id}",
+         response_model=models.Video,
+         response_model_exclude={"updated_at", "deleted_at"})
+async def get_video(
+    video_id: str,
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
+):
+    return await controller.get_video(video_id)
+
+
+@app.get("/media/video",
+         response_model=list[models.Video])
+async def list_video(
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
+
+):
+    return await controller.list_video()
+
+
+@app.get("/geofiles/download/{table_name}", status_code=status.HTTP_200_OK)
+async def get_file_download(
+    table_name: str,
+    controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)]
+):
+    return await controller.get_geofile_download(table_name)

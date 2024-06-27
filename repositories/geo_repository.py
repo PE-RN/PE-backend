@@ -115,3 +115,9 @@ class GeoRepository:
         os.remove(temp_file.name)
 
         return dataset
+
+    async def get_geofile_download(self, table_name) -> str:
+
+        query = select(Geodata.url_acess).filter_by(name=table_name).fetch(1)
+        data = await self.db.exec(query)
+        return data.first()
