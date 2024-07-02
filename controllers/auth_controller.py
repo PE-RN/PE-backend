@@ -60,9 +60,13 @@ class AuthController:
             payload = jwt.decode(token, getenv("SECRET_KEY"), algorithms=[getenv("ALGORITHM")])
             sub = payload.get('sub')
 
-            anonymous_user = repository.get_anonymous_user_by_id(sub)
-            if anonymous_user:
-                return anonymous_user
+            try:
+                anonymous_user = repository.get_anonymous_user_by_id(sub)
+                if anonymous_user:
+                    return anonymous_user
+            except Exception as e:
+                capture_exception(e)
+                pass
 
             email = sub
             if not email:
@@ -139,9 +143,13 @@ class AuthController:
 
         # anonymouns user return id
         sub = payload.get('sub')
-        anonymouns = await self.repository.get_anonymous_user_by_id(sub)
-        if anonymouns:
-            return anonymouns.id.hex
+        try:
+            anonymouns = await self.repository.get_anonymous_user_by_id(sub)
+            if anonymouns:
+                return anonymouns.id.hex
+        except Exception as e:
+            capture_exception(e)
+            pass
 
         email = payload.get("sub")
         if not email:
