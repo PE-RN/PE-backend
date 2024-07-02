@@ -20,6 +20,7 @@ from schemas.user import UserCreate
 from schemas.media import CreatePdf, CreateVideo
 from sql_app import models
 from sql_app.database import init_db
+from enums.ocupation_enum import OcupationEnum
 
 
 @asynccontextmanager
@@ -231,3 +232,11 @@ async def get_file_download(
     controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)]
 ):
     return await controller.get_geofile_download(table_name)
+
+
+@app.post("/anonymous", status_code=status.HTTP_201_CREATED)
+async def post_anonymous(
+    ocupation: Annotated[OcupationEnum, Body(embed=True)],
+    controller: Annotated[AuthController, Depends(AuthController.inject_controller)]
+):
+    return await controller.create_anonymous_user(ocupation=ocupation)
