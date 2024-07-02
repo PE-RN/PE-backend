@@ -59,9 +59,11 @@ class AuthController:
                 raise JWTError
             payload = jwt.decode(token, getenv("SECRET_KEY"), algorithms=[getenv("ALGORITHM")])
             sub = payload.get('sub')
+            if not sub:
+                raise JWTError
 
             try:
-                anonymous_user = repository.get_anonymous_user_by_id(sub)
+                anonymous_user = await repository.get_anonymous_user_by_id(sub)
                 if anonymous_user:
                     return anonymous_user
             except Exception as e:
@@ -69,8 +71,6 @@ class AuthController:
                 pass
 
             email = sub
-            if not email:
-                raise JWTError
             user = await repository.get_user_by_email(email)
             return user
 

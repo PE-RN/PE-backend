@@ -121,6 +121,7 @@ async def test_get_user_from_token(auth_repository):
         group_id=None,
     )
     auth_repository.get_user_by_email = AsyncMock(return_value=user)
+    auth_repository.get_anonymous_user_by_id = AsyncMock(return_value=None)
 
     # Act
     user_response = await AuthController.get_user_from_token(auth_repository, access_token)
