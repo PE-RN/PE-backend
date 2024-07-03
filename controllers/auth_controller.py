@@ -54,14 +54,26 @@ class AuthController:
 
         try:
             token_type, token = authorization.split(' ')
+
             if token_type != getenv('TOKEN_TYPE'):
                 raise JWTError
             payload = jwt.decode(token, getenv("SECRET_KEY"), algorithms=[getenv("ALGORITHM")])
-            email = payload.get('sub')
-            if not email:
+            sub = payload.get('sub')
+            if not sub:
                 raise JWTError
+
+            try:
+                anonymous_user = await repository.get_anonymous_user_by_id(sub)
+                if anonymous_user:
+                    return anonymous_user
+            except Exception as e:
+                capture_exception(e)
+                pass
+
+            email = sub
             user = await repository.get_user_by_email(email)
             return user
+
         except ExpiredSignatureError:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expirado!")
         except (JWTError, ValueError):
@@ -107,6 +119,7 @@ class AuthController:
         return None
 
     async def confirm_email(self, temporary_user_id: UUID) -> None:
+
         temporary_user = await self.repository.get_temporary_user_by_id(temporary_user_id)
         if temporary_user:
             user = await self.repository.get_user_by_email(temporary_user.email)
@@ -128,6 +141,16 @@ class AuthController:
         except JWTError:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido!")
 
+        # anonymouns user return id
+        sub = payload.get('sub')
+        try:
+            anonymouns = await self.repository.get_anonymous_user_by_id(sub)
+            if anonymouns:
+                return anonymouns.id.hex
+        except Exception as e:
+            capture_exception(e)
+            pass
+
         email = payload.get("sub")
         if not email:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Não foi possível validar as credencias!")
@@ -146,6 +169,7 @@ class AuthController:
         return Token(access_token=new_access_token, refresh_token=new_refresh_token)
 
     def generate_temporary_password(self):
+
         caracteres = string.digits
         senha = ''.join(secrets.choice(caracteres) for _ in range(9))
         return senha
@@ -181,6 +205,15 @@ class AuthController:
         new_password_hashed = self._hash_password(new_password)
         user.password = new_password_hashed
         await self.repository.update_user(user)
+
+    async def create_anonymous_user(self, ocupation: str):
+
+        anonymous_user = await self.repository.create_anonymous_user(ocupation=ocupation)
+        # Passing ID to hash againts email beccause is anonymouns
+        access_token = self.generate_access_token(email=anonymous_user.id.hex)
+        refresh_token = self.generate_refresh_token(email=anonymous_user.id.hex)
+
+        return Token(access_token=access_token, refresh_token=refresh_token)
 
     def _create_recovery_email_message(self, new_password, to_email) -> EmailMessage:
 

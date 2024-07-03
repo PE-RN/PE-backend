@@ -69,8 +69,21 @@ class User(SQLModel, table=True):
     group_id: UUID | None = Field(
         sa_column=Column(pg.UUID),
         default=None,
-
     )
+
+
+class AnonymousUser(SQLModel, table=True):
+
+    """
+    This class represents an anonymous user
+    """
+
+    __tablename__ = "AnonymousUser"
+
+    id: UUID = Field(
+        sa_column=Column(pg.UUID, primary_key=True, unique=True, default=uuid4)
+    )
+    ocupation: str
 
 
 class LogsEmail(SQLModel, table=True):
