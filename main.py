@@ -107,7 +107,7 @@ async def get_recovery_password(
 
 @app.post("/change-password", status_code=status.HTTP_200_OK)
 async def post_change_password(
-    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
     password: Annotated[str, Body()],
     new_password: Annotated[str, Body()],
     controller: Annotated[AuthController, Depends(AuthController.inject_controller)]
@@ -119,19 +119,20 @@ async def post_change_password(
 async def post_process_geo_processing(
     geoJSON: GeoJSON,
     raster_name: str,
-    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
     controller: Annotated[ProcessController, Depends(ProcessController.inject_controller)]
 ):
 
-    return await controller.process_geo_process(geoJSON, raster_name)
+    return await controller.process_geo_process(geoJSON, raster_name, user.id.hex)
 
 
 @app.get("/process/raster/{raster_name}")
 async def post_process_raster(
     raster_name: str,
-    controller: Annotated[ProcessController, Depends(ProcessController.inject_controller)]
+    controller: Annotated[ProcessController, Depends(ProcessController.inject_controller)],
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)]
 ):
-    return await controller.process_raster(raster_name)
+    return await controller.process_raster(raster_name, user.id.hex)
 
 
 @app.get("/sentry-debug")
@@ -166,7 +167,7 @@ async def get_geofiles_raster(
           response_model_exclude={"updated_at", "deleted_at"})
 async def post_pdf(
     pdf: CreatePdf,
-    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
     controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
 
 ):
@@ -178,7 +179,7 @@ async def post_pdf(
          response_model_exclude={"updated_at", "deleted_at"})
 async def get_pdf(
     pdf_id: str,
-    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
     controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
 ):
     return await controller.get_pdf(pdf_id)
@@ -186,7 +187,7 @@ async def get_pdf(
 
 @app.get("/media/pdf", response_model=list[models.PdfFile])
 async def list_pdf(
-    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
     controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
 
 ):
@@ -198,7 +199,7 @@ async def list_pdf(
           response_model_exclude={"updated_at", "deleted_at"})
 async def post_video(
     video: CreateVideo,
-    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
     controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
 
 ):
@@ -210,7 +211,7 @@ async def post_video(
          response_model_exclude={"updated_at", "deleted_at"})
 async def get_video(
     video_id: str,
-    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
     controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
 ):
     return await controller.get_video(video_id)
@@ -219,7 +220,7 @@ async def get_video(
 @app.get("/media/video",
          response_model=list[models.Video])
 async def list_video(
-    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
     controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
 
 ):
