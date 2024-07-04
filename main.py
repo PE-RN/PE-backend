@@ -155,10 +155,9 @@ async def get_geofiles_raster(
     x,
     y,
     z,
-    response: Response,
     controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)]
 ):
-    return await controller.get_raster(table_name=table_name, response=response, x=x, y=y, z=z)
+    return await controller.get_raster(table_name=table_name, x=x, y=y, z=z)
 
 
 @app.post("/media/pdf",
