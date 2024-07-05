@@ -134,6 +134,16 @@ async def post_process_raster(
     return await controller.process_raster(raster_name)
 
 
+@app.post("/process/dash-data")
+async def get_dash_data(
+    geoJSON: GeoJSON,
+    energy_type: str,
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[ProcessController, Depends(ProcessController.inject_controller)]
+):
+    return await controller.dash_data(geoJSON, energy_type)
+
+
 @app.get("/sentry-debug")
 async def trigger_error():
     division_by_zero = 1 / 0
