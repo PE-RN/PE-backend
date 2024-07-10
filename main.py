@@ -20,6 +20,7 @@ from schemas.user import UserCreate
 from schemas.media import CreatePdf, CreateVideo
 from sql_app import models
 from sql_app.database import init_db
+from enums.ocupation_enum import OcupationEnum
 
 
 @asynccontextmanager
@@ -133,6 +134,16 @@ async def post_process_raster(
     return await controller.process_raster(raster_name)
 
 
+@app.post("/process/dash-data")
+async def get_dash_data(
+    geoJSON: GeoJSON,
+    energy_type: str,
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[ProcessController, Depends(ProcessController.inject_controller)]
+):
+    return await controller.dash_data(geoJSON, energy_type)
+
+
 @app.get("/sentry-debug")
 async def trigger_error():
     division_by_zero = 1 / 0
@@ -154,10 +165,9 @@ async def get_geofiles_raster(
     x,
     y,
     z,
-    response: Response,
     controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)]
 ):
-    return await controller.get_raster(table_name=table_name, response=response, x=x, y=y, z=z)
+    return await controller.get_raster(table_name=table_name, x=x, y=y, z=z)
 
 
 @app.post("/media/pdf",
@@ -231,3 +241,11 @@ async def get_file_download(
     controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)]
 ):
     return await controller.get_geofile_download(table_name)
+
+
+@app.post("/anonymous", status_code=status.HTTP_201_CREATED)
+async def post_anonymous(
+    ocupation: Annotated[OcupationEnum, Body(embed=True)],
+    controller: Annotated[AuthController, Depends(AuthController.inject_controller)]
+):
+    return await controller.create_anonymous_user(ocupation=ocupation)

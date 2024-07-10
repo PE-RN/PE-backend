@@ -8,6 +8,7 @@ from repositories.geo_repository import GeoRepository
 from schemas.geojson import GeoJSON
 from scripts.create_raster_obj import read_raster_as_json
 from scripts.geo_processing import clip_and_get_pixel_values
+from scripts.dash_data import mean_stats
 from sql_app.database import get_db
 
 
@@ -48,3 +49,19 @@ class ProcessController:
         if not dataset:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Problemas no processamento!')
         return await read_raster_as_json(dataset)
+
+    async def dash_data(self, geoJSON: GeoJSON, energy_type: str):
+
+        self._validate_features(geoJSON)
+
+        json_data = await self.repository.get_geo_json_data_by_name(energy_type)
+        if not json_data:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Problemas no processamento!")
+
+        return await mean_stats(json_data.data, geoJSON.model_dump())
+
+    async def create_geo_json_data(self, geoJSON: GeoJSON, name: str):
+
+        self._validate_features(geoJSON)
+
+        return await self.repository.create_geo_json_data(data=geoJSON, name=name)
