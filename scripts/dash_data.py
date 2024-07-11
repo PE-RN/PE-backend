@@ -1,5 +1,4 @@
 from shapely.geometry import shape, mapping
-from shapely.ops import unary_union
 import numpy as np
 
 
@@ -19,15 +18,12 @@ async def mean_stats(geojson_loaded_from_db, geojson_sent_by_user):
 
     # Convert GeoJSON features to Shapely geometries
     geometries1 = [(shape(feature['geometry']), feature['properties']) for feature in geojson_loaded_from_db['features']]
-    geometries2 = [shape(feature['geometry']) for feature in geojson_sent_by_user['features']]
-
-    # Create a union of geometries from the second GeoJSON
-    clip_union = unary_union(geometries2)
+    geometries2 = shape(geojson_sent_by_user.geometry.dict())
 
     # Clip geometries from the first GeoJSON with the union of the second GeoJSON
     clipped_features = []
     for geometry, properties in geometries1:
-        clipped_geometry = geometry.intersection(clip_union)
+        clipped_geometry = geometry.intersection(geometries2)
         if not clipped_geometry.is_empty:
             clipped_features.append({
                 "type": "Feature",
@@ -64,7 +60,6 @@ async def mean_stats(geojson_loaded_from_db, geojson_sent_by_user):
     }
 
     means = {}
-
     # Calculate the mean values for each property and update the properties of the clipped features
     for prop in properties_to_average:
         vectors = [feature['properties'][prop]['values'] for feature in clipped_features if prop in feature['properties']]
@@ -85,8 +80,7 @@ async def mean_stats(geojson_loaded_from_db, geojson_sent_by_user):
             }
 
     # Create the final JSON object with the calculated means
-    final_json = {
-        "means": means
-    }
-
-    return final_json
+    return {'type': 'ResponseData', 'properties': {
+                    'name': geojson_sent_by_user.properties.name,
+                    'regionValues': means}
+            }
