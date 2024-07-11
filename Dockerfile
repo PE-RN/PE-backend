@@ -2,8 +2,8 @@
 FROM continuumio/miniconda3
 
 
-
-COPY scripts/data/dado_pixel.geojson /temp/dado_pixel.geojson
+RUN mkdir -p temp
+COPY scripts/data/dado_pixel.geojson temp/dado_pixel.geojson
 # Copy the application files
 COPY . .
 
