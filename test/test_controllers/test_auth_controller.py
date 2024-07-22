@@ -401,8 +401,8 @@ async def test_confirm_email_user(auth_repository):
 
     # Act
     response = await auth_controller.confirm_email(uuid4())
-    expected = RedirectResponse(url=f"{getenv('FRONT_URL')}pages/login/login.html", 
-                                        status_code=status.HTTP_302_FOUND)
+    expected = RedirectResponse(url=f"{getenv('FRONT_URL')}pages/login/login.html",
+                                status_code=status.HTTP_302_FOUND)
 
     # Assert
     assert expected.status_code == response.status_code
@@ -647,18 +647,22 @@ async def test_create_recovery_email_message(auth_repository):
     new_password = 'new_password'
     to_email = "rodolfobez15@gmail.com"
     content = HtmlGenerator().get_password_recovery(
-            contact_link=f"{getenv('FRONT_URL')}pages/contact/contact.html",
-            user_email=to_email,
-            enter_link=f"{getenv('FRONT_URL')}pages/login/login.html",
-            img_logo_cid='logo',
-            reset_password_link=f"{getenv('FRONT_URL')}pages/login/login.html",  # TODO moved to correct page after the page is ready on front side
-            img_isi_er_cid='isi',
-            img_state_cid='estado',
-            new_password=new_password)
+        contact_link=f"{getenv('FRONT_URL')}pages/contact/contact.html",
+        user_email=to_email,
+        enter_link=f"{getenv('FRONT_URL')}pages/login/login.html",
+        img_logo_cid='logo',
+        reset_password_link=f"{getenv('FRONT_URL')}pages/login/login.html",  # TODO moved to correct page after the page is ready on front side
+        img_isi_er_cid='isi',
+        img_state_cid='estado',
+        new_password=new_password
+    )
 
     # Act
     email_response = auth_controller._create_recovery_email_message(new_password, to_email)
-    expected = EmailMessage.with_default_logo_images(to_email='rodolfobez15@gmail.com', subject="Recuperação de senha Plataforma Atlas", html_content=content)
+    expected = EmailMessage.with_default_logo_images(
+        to_email='rodolfobez15@gmail.com',
+        subject="Recuperação de senha Plataforma Atlas",
+        html_content=content)
 
     # Assert
     assert email_response.html_content == expected.html_content
