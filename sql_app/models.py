@@ -168,3 +168,14 @@ class Geodata(SQLModel, table=True):
     origin_name: str
     url_acess: str
     geotype: str
+
+
+class GeoJsonData(SQLModel, table=True):
+
+    __tablename__ = "GeoJsonData"
+
+    id: UUID = Field(
+        sa_column=Column(pg.UUID, primary_key=True, unique=True, default=uuid4)
+    )
+    name: str
+    data: dict = Field(sa_column=Column(pg.JSON))

@@ -14,7 +14,7 @@ from controllers.geo_files_controller import GeoFilesController
 from controllers.process_controller import ProcessController
 from controllers.user_controller import UserController
 from controllers.media_controller import MediaController
-from schemas.geojson import GeoJSON
+from schemas.feature import Feature
 from schemas.token import Token
 from schemas.user import UserCreate
 from schemas.media import CreatePdf, CreateVideo
@@ -117,7 +117,7 @@ async def post_change_password(
 
 @app.post("/process/geo-processing/{raster_name}")
 async def post_process_geo_processing(
-    geoJSON: GeoJSON,
+    feature: Feature,
     raster_name: str,
     user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
     controller: Annotated[ProcessController, Depends(ProcessController.inject_controller)]
@@ -133,6 +133,16 @@ async def post_process_raster(
     user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)]
 ):
     return await controller.process_raster(raster_name, user.id.hex)
+
+
+@app.post("/process/dash-data/{energy_type}")
+async def get_dash_data(
+    feature: Feature,
+    energy_type: str,
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[ProcessController, Depends(ProcessController.inject_controller)]
+):
+    return await controller.dash_data(feature, energy_type)
 
 
 @app.get("/sentry-debug")
@@ -156,10 +166,9 @@ async def get_geofiles_raster(
     x,
     y,
     z,
-    response: Response,
     controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)]
 ):
-    return await controller.get_raster(table_name=table_name, response=response, x=x, y=y, z=z)
+    return await controller.get_raster(table_name=table_name, x=x, y=y, z=z)
 
 
 @app.post("/media/pdf",

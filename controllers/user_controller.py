@@ -13,13 +13,13 @@ from services.email_service import EmailService
 from sql_app.database import get_db
 from sql_app.models import TemporaryUser
 from asyncer import syncify
+from utils.html_generator import HtmlGenerator
 import bcrypt
 
 
 class UserController:
 
     def __init__(self, repository: UserRepository, email_service: EmailService, background_tasks: BackgroundTasks):
-
         self.repository = repository
         self.email_service = email_service
         self.background_tasks = background_tasks
@@ -63,7 +63,6 @@ class UserController:
         email_message = self._create_confirmation_account_email_message(
             user.email,
             f"{getenv('HOST_URL')}confirm-email/{temporary_user.id}",
-            user.ocupation.value
         )
 
         if getenv('ENVIRONMENT') != 'local':
@@ -75,14 +74,19 @@ class UserController:
 
         return temporary_user
 
-    def _create_confirmation_account_email_message(self, to_email, link_url, ocupation) -> EmailMessage:
+    def _create_confirmation_account_email_message(self, to_email, confirmation_link_url) -> EmailMessage:
 
-        link_url = self._replace_safety_url_for_sender_pattern(link_url)
+        link_url = self._replace_safety_url_for_sender_pattern(confirmation_link_url)
 
-        content = f'<h3 style="color:#0dace3;"> {ocupation.capitalize()} para confirmar seu email na plataforma por favor click  no link'
-        content += f' <a style="display: inline-block;" href="{link_url}">LINK</a> !! <h3>'
+        content = HtmlGenerator().confirmation_account(
+            img_logo_cid='logo',
+            img_isi_er_cid="isi",
+            img_state_cid="estado",
+            user_email=to_email,
+            contact_link=f"{getenv('FRONT_URL')}pages/contact/contact.html",
+            confirmation_email_link=link_url)
 
-        return EmailMessage(html_content=content, subject="Confirmação de email Plataforma Atlas", to_email=to_email)
+        return EmailMessage.with_default_logo_images(html_content=content, subject="Confirmação de email Plataforma Atlas", to_email=to_email)
 
     def _send_email_account_confirmation_wrapper(self, email_message: EmailMessage, temporary_user: TemporaryUser):
 

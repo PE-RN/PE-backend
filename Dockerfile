@@ -2,6 +2,8 @@
 FROM continuumio/miniconda3
 
 
+RUN mkdir -p temp
+COPY scripts/data/dado_pixel.geojson temp/dado_pixel.geojson
 # Copy the application files
 COPY . .
 
@@ -12,6 +14,7 @@ RUN conda install mamba -n base -c conda-forge
 RUN mamba create -n atlas python=3.11.8 -c conda-forge --yes
 RUN echo "source activate atlas" > ~/.bashrc
 ENV PATH /opt/conda/envs/atlas/bin:$PATH
+
 
 
 # Use Mamba to install packages
