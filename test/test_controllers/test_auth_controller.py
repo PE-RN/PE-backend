@@ -10,6 +10,9 @@ import bcrypt
 import pytest
 from fastapi import BackgroundTasks
 from fastapi.exceptions import HTTPException
+from fastapi.responses import RedirectResponse
+from fastapi import status
+
 from jose import jwt
 
 from controllers.auth_controller import AuthController
@@ -17,6 +20,8 @@ from schemas.email import EmailMessage
 from schemas.token import Token
 from services.email_service import EmailService
 from sql_app import models
+
+from utils.html_generator import HtmlGenerator
 
 
 @pytest.mark.anyio
@@ -396,9 +401,12 @@ async def test_confirm_email_user(auth_repository):
 
     # Act
     response = await auth_controller.confirm_email(uuid4())
+    expected = RedirectResponse(url=f"{getenv('FRONT_URL')}pages/login/login.html", 
+                                        status_code=status.HTTP_302_FOUND)
 
     # Assert
-    assert response == None
+    assert expected.status_code == response.status_code
+    assert expected.body == response.body
 
 
 @pytest.mark.anyio
@@ -637,12 +645,22 @@ async def test_create_recovery_email_message(auth_repository):
     # Arrange
     auth_controller = AuthController(repository=auth_repository, email_service=None, background_tasks=None)
     new_password = 'new_password'
-    content = '<h3 style="color:#0dace3;">você pode trocar esta senha futuramente usando a opção de troca, sua senha temporaria SENHA:'
-    content += f' <h2 style="color:black;">{new_password}<h2/><h3/>'
     to_email = "rodolfobez15@gmail.com"
+    content = HtmlGenerator().get_password_recovery(
+            contact_link=f"{getenv('FRONT_URL')}pages/contact/contact.html",
+            user_email=to_email,
+            enter_link=f"{getenv('FRONT_URL')}pages/login/login.html",
+            img_logo_cid='logo',
+            reset_password_link=f"{getenv('FRONT_URL')}pages/login/login.html",  # TODO moved to correct page after the page is ready on front side
+            img_isi_er_cid='isi',
+            img_state_cid='estado',
+            new_password=new_password)
 
     # Act
     email_response = auth_controller._create_recovery_email_message(new_password, to_email)
+    expected = EmailMessage.with_default_logo_images(to_email='rodolfobez15@gmail.com', subject="Recuperação de senha Plataforma Atlas", html_content=content)
 
     # Assert
-    assert EmailMessage(to_email='rodolfobez15@gmail.com', subject="Recuperação de senha Plataforma Atlas", html_content=content) == email_response
+    assert email_response.html_content == expected.html_content
+    assert email_response.subject == expected.subject
+    assert email_response.to_email == email_response.to_email
