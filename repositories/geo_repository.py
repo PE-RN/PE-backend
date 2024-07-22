@@ -11,7 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from schemas.geojson import GeoJSON
 from schemas.geometry import Geometry
-from sql_app.models import Geodata
+from sql_app.models import Geodata, GeoJsonData
 from sqlmodel import select
 
 
@@ -121,3 +121,17 @@ class GeoRepository:
         query = select(Geodata.url_acess).filter_by(name=table_name).fetch(1)
         data = await self.db.exec(query)
         return data.first()
+
+    async def get_geo_json_data_by_name(self, name) -> GeoJsonData | None:
+
+        query = select(GeoJsonData).filter_by(name=name).fetch(1)
+        data = await self.db.exec(query)
+        return data.first()
+
+    async def create_geo_json_data(self, data, name):
+
+        geo_json_data = GeoJsonData(data=data, name=name)
+        self.db.add(geo_json_data)
+        await self.db.commit()
+        await self.db.refresh(geo_json_data)
+        return geo_json_data

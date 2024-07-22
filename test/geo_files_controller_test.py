@@ -1,4 +1,3 @@
-import os
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -19,14 +18,14 @@ test_validate_geofile_parameters = [
     (
         'wrong_name',
         'raster',
-        {'name': None, 'geotype': 'raster'},
+        [None, 'raster'],
         "Geofile nome ou tipo faltando!",
         status.HTTP_400_BAD_REQUEST,
     ),
     (
         'wrong_geotype',
         'raster',
-        {'name': 'test_tabl e', 'geotype': 'geotype'},
+        ['test_tabl e', 'geotype'],
         "Tipo incorreto de geometria!",
         status.HTTP_400_BAD_REQUEST
     ),
@@ -94,9 +93,8 @@ async def test_get_polygon_wrong():
 async def test_get_raster():
 
     # Arrange
-    file = open("example.txt", "w")
+    file = b"\x00\x01"
     geo_files_controller = GeoFilesController(repository=MagicMock())
-    geo_files_controller._validate_geofile = AsyncMock(return_value=None)
     geo_files_controller.repository.get_raster = AsyncMock(return_value=file)
     raster_response = StreamingResponse(
         file,
@@ -109,6 +107,3 @@ async def test_get_raster():
 
     # Assert
     assert type(raster_data) is type(raster_response)
-
-    # Tear down
-    os.remove("example.txt")
