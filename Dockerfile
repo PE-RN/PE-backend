@@ -1,9 +1,6 @@
 # Use Miniconda base image
 FROM continuumio/miniconda3
 
-
-RUN mkdir -p temp
-COPY scripts/data/dado_pixel.geojson temp/dado_pixel.geojson
 # Copy the application files
 COPY . .
 

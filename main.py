@@ -123,7 +123,7 @@ async def post_process_geo_processing(
     controller: Annotated[ProcessController, Depends(ProcessController.inject_controller)]
 ):
 
-    return await controller.process_geo_process(feature, raster_name)
+    return await controller.process_geo_process(feature, raster_name, user.id.hex)
 
 
 @app.get("/process/raster/{raster_name}")
