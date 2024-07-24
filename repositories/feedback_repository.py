@@ -12,7 +12,7 @@ class FeedbackRepository:
 
     async def create_feedback(self, feedback_schema: FeedbackCreate):
 
-        feedback = models.PdfFile(**feedback_schema.model_dump())
+        feedback = models.Feedback(**feedback_schema.model_dump())
         self.db.add(feedback)
         await self.db.commit()
         await self.db.refresh(feedback)

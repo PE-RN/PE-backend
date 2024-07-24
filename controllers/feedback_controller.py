@@ -1,10 +1,8 @@
 from os import getenv
 from typing import Annotated
 
-from asyncer import syncify
 from fastapi import BackgroundTasks, Depends, status
 from fastapi.exceptions import HTTPException
-from sentry_sdk import capture_exception
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from repositories.feedback_repository import FeedbackRepository
@@ -14,8 +12,7 @@ from services.email_service import EmailService
 from sql_app.database import get_db
 
 
-
-class UserController:
+class FeedbackController:
 
     def __init__(self, repository: FeedbackRepository, email_service: EmailService, background_tasks: BackgroundTasks):
 
@@ -26,7 +23,7 @@ class UserController:
     @staticmethod
     async def inject_controller(background_tasks: BackgroundTasks, db: Annotated[AsyncSession, Depends(get_db)]):
 
-        return UserController(
+        return FeedbackController(
             repository=FeedbackRepository(db=db),
             email_service=EmailService(
                 host=getenv("SMTP_HOST"),
@@ -42,7 +39,7 @@ class UserController:
         created_feedback = await self.repository.create_feedback(feedback)
         if not created_feedback:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Não foi possível criar o feedback")
-        
+
         email_message = self._create_feedback_email_message(
             'platenergiasrn@isi-er.com.br',
             created_feedback
@@ -58,13 +55,15 @@ class UserController:
 
     def _create_feedback_email_message(self, to_email, feedback) -> EmailMessage:
 
-        content = []
-        content['contato'] = 'a'
-        content['opniao'] = 'a'
-        content['contato'] = f'<h3 style="color:#0dace3;"> {ocupation.capitalize()} para confirmar seu email na plataforma por favor click  no link'
-        content['contato'] += f' <a style="display: inline-block;" href="{link_url}">LINK</a> !! <h3>'
+        content = {}
+        content['contato'] = f'<h3 style="color:#0dace3;"> Um novo contato de {feedback.name} com email {feedback.email}'
+        content['contato'] += f' <a style="display: inline-block;"><br> Menssagem:<br>{feedback.message}</a> !! <h3>'
 
-        return EmailMessage(html_content=content[feedback.type], subject="Confirmação de email Plataforma Atlas", to_email=to_email)
+        content['opniao'] = f"""<h3 style="color:#0dace3;"> Uma nova opnião de avaliação {feedback.platform_rate}
+                        com intuitivade {feedback.intuitivity}"""
+        content['opniao'] += f' <a style="display: inline-block;"><br> Menssagem:<br>{feedback.message}</a><h3>'
+
+        return EmailMessage.with_default_logo_images(html_content=content[feedback.type], subject="Novo feedback enviado", to_email=to_email)
 
     def _send_feedback_email(self, email_message: EmailMessage):
 

@@ -10,11 +10,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import EmailStr
 
 from controllers.auth_controller import AuthController
+from controllers.feedback_controller import FeedbackController
 from controllers.geo_files_controller import GeoFilesController
 from controllers.process_controller import ProcessController
 from controllers.user_controller import UserController
 from controllers.media_controller import MediaController
 from schemas.feature import Feature
+from schemas.feedback import FeedbackCreate
 from schemas.token import Token
 from schemas.user import UserCreate
 from schemas.media import CreatePdf, CreateVideo
@@ -145,16 +147,6 @@ async def get_dash_data(
     return await controller.dash_data(feature, energy_type)
 
 
-@app.post("/process/dash-data")
-async def get_dash_data(
-    geoJSON: GeoJSON,
-    energy_type: str,
-    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
-    controller: Annotated[ProcessController, Depends(ProcessController.inject_controller)]
-):
-    return await controller.dash_data(geoJSON, energy_type)
-
-
 @app.get("/sentry-debug")
 async def trigger_error():
     division_by_zero = 1 / 0
@@ -260,3 +252,14 @@ async def post_anonymous(
     controller: Annotated[AuthController, Depends(AuthController.inject_controller)]
 ):
     return await controller.create_anonymous_user(ocupation=ocupation)
+
+
+@app.post("/contact",
+          response_model=models.Feedback,
+          response_model_exclude={"updated_at", "deleted_at"})
+async def post_contact(
+    contact: FeedbackCreate,
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[FeedbackController, Depends(FeedbackController.inject_controller)]
+):
+    return await controller.create_feedback(contact)
