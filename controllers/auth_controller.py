@@ -8,6 +8,7 @@ from uuid import UUID
 import bcrypt
 from fastapi import BackgroundTasks, Depends, Header, status
 from fastapi.exceptions import HTTPException
+from fastapi.responses import RedirectResponse
 from jose import JWTError, jwt, ExpiredSignatureError
 from pydantic import EmailStr
 from sentry_sdk import capture_exception
@@ -20,6 +21,7 @@ from services.email_service import EmailService
 from sql_app.database import get_db
 from sql_app.models import User
 from asyncer import syncify
+from utils.html_generator import HtmlGenerator
 
 
 class AuthController:
@@ -128,7 +130,7 @@ class AuthController:
 
             await self.repository.create_user_from_temporary(temporary_user)
             await self.repository.delete_temporary_user(temporary_user)
-            return
+            return RedirectResponse(url=f"{getenv('FRONT_URL')}pages/login/login.html", status_code=status.HTTP_302_FOUND)
 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado!")
 
@@ -217,10 +219,17 @@ class AuthController:
 
     def _create_recovery_email_message(self, new_password, to_email) -> EmailMessage:
 
-        content = '<h3 style="color:#0dace3;">você pode trocar esta senha futuramente usando a opção de troca, sua senha temporaria SENHA:'
-        content += f' <h2 style="color:black;">{new_password}<h2/><h3/>'
+        content = HtmlGenerator().get_password_recovery(
+            contact_link=f"{getenv('FRONT_URL')}pages/contact/contact.html",
+            user_email=to_email,
+            enter_link=f"{getenv('FRONT_URL')}pages/login/login.html",
+            img_logo_cid='logo',
+            reset_password_link=f"{getenv('FRONT_URL')}pages/login/login.html",  # TODO moved to correct page after the page is ready on front side
+            img_isi_er_cid='isi',
+            img_state_cid='estado',
+            new_password=new_password)
 
-        return EmailMessage(to_email=to_email, subject="Recuperação de senha Plataforma Atlas", html_content=content)
+        return EmailMessage.with_default_logo_images(to_email=to_email, subject="Recuperação de senha Plataforma Atlas", html_content=content)
 
     def _send_email_recovery_password_wrapper(self, email_message: EmailMessage):
         try:

@@ -1,7 +1,6 @@
 # Use Miniconda base image
 FROM continuumio/miniconda3
 
-
 # Copy the application files
 COPY . .
 
@@ -12,6 +11,7 @@ RUN conda install mamba -n base -c conda-forge
 RUN mamba create -n atlas python=3.11.8 -c conda-forge --yes
 RUN echo "source activate atlas" > ~/.bashrc
 ENV PATH /opt/conda/envs/atlas/bin:$PATH
+
 
 
 # Use Mamba to install packages
