@@ -1,5 +1,4 @@
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select
 from schemas.feedback import FeedbackCreate
 from sql_app import models
 
