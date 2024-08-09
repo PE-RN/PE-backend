@@ -20,6 +20,8 @@ async def mean_stats(geojson_loaded_from_db, geojson_sent_by_user):
     geometries1 = [(shape(feature['geometry']), feature['properties']) for feature in geojson_loaded_from_db['features']]
     geometries2 = shape(geojson_sent_by_user.geometry.dict())
 
+    num_pixels = len(geojson_sent_by_user.geometry.coordinates[0])
+
     # Clip geometries from the first GeoJSON with the union of the second GeoJSON
     clipped_features = []
     for geometry, properties in geometries1:
@@ -44,7 +46,7 @@ async def mean_stats(geojson_loaded_from_db, geojson_sent_by_user):
     for prop in all_properties:
         vectors = [feature['properties'][prop]['values'] for feature in clipped_features if prop in feature['properties']]
         if vectors:
-            if prop in ['speed_probability', 'power_density_probability', 'hourly_mean_ghi', 'hourly_mean_power']:
+            if prop in ['speed_probability', 'power_density_probability']:
                 mean_value = await calculate_mean_of_2d_vectors(vectors)
             else:
                 mean_value = await calculate_mean_of_vectors(vectors)
@@ -62,5 +64,6 @@ async def mean_stats(geojson_loaded_from_db, geojson_sent_by_user):
     # Create the final JSON object with the calculated means
     return {'type': 'ResponseData', 'properties': {
                     'name': geojson_sent_by_user.properties.name,
-                    'regionValues': means}
+                    'regionValues': means,
+                    'pixels': num_pixels}
             }
