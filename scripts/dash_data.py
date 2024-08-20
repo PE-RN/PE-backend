@@ -24,6 +24,7 @@ async def mean_stats(geojson_loaded_from_db, geojson_sent_by_user):
 
     # Clip geometries from the first GeoJSON with the union of the second GeoJSON
     clipped_features = []
+    num_pixels = 0
     for geometry, properties in geometries1:
         clipped_geometry = geometry.intersection(geometries2)
         if not clipped_geometry.is_empty:
@@ -32,6 +33,7 @@ async def mean_stats(geojson_loaded_from_db, geojson_sent_by_user):
                 "geometry": mapping(clipped_geometry),
                 "properties": properties
             })
+            num_pixels += 1
 
     # Extract all unique properties from clipped features and their units
     property_units = {}
