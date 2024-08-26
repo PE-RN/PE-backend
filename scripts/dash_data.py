@@ -18,9 +18,12 @@ async def mean_stats(geojson_loaded_from_db, geojson_sent_by_user):
 
     # Convert GeoJSON features to Shapely geometries
     geometries1 = [(shape(feature['geometry']), feature['properties']) for feature in geojson_loaded_from_db['features']]
-    print(geojson_sent_by_user.geometry.dict())
-    geometries2 = shape(geojson_sent_by_user.geometry.dict())
+    try:
+        geometries2 = shape(geojson_sent_by_user.geometry.dict())
+    except Exception as e:
+        print(f"Error converting geometry: {e}")
 
+    
     num_pixels = len(geojson_sent_by_user.geometry.coordinates[0])
 
     # Clip geometries from the first GeoJSON with the union of the second GeoJSON
