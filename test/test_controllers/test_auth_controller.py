@@ -33,8 +33,12 @@ async def test_get_user_from_token_invalid_token(auth_repository):
     user = models.User(
         email=user_email,
         password="password",
-        ocupation='pesquisador',
+        ocupation='Desenvolvedor',
         group_id=None,
+        gender="woman",
+        education="bachelors",
+        institution="ISI-ER",
+        age="25-29"
     )
     invalid_token = 'huehueheuheu'
     authorization = f"Bearer {invalid_token}"
@@ -77,8 +81,12 @@ async def test_get_user_from_token_invalid_authorization_token(auth_repository):
     user = models.User(
         email=user_email,
         password="password",
-        ocupation='pesquisador',
+        ocupation='Desenvolvedor',
         group_id=None,
+        gender="woman",
+        education="bachelors",
+        institution="ISI-ER",
+        age="25-29"
     )
     invalid_token = 'huehueheuheu'
     authorization = f"Bearer{invalid_token}"
@@ -122,8 +130,12 @@ async def test_get_user_from_token(auth_repository):
     user = models.User(
         email=user_email,
         password="password",
-        ocupation='pesquisador',
+        ocupation='Desenvolvedor',
         group_id=None,
+        gender="woman",
+        education="bachelors",
+        institution="ISI-ER",
+        age="25-29"
     )
     auth_repository.get_user_by_email = AsyncMock(return_value=user)
     auth_repository.get_anonymous_user_by_id = AsyncMock(return_value=None)
@@ -263,8 +275,12 @@ async def test_get_token_user(auth_repository):
     user = models.User(
         email=user_email,
         password="password",
-        ocupation='pesquisador',
+        ocupation='Desenvolvedor',
         group_id=None,
+        gender="woman",
+        education="bachelors",
+        institution="ISI-ER",
+        age="25-29"
     )
     token = 'token'
     refresh_token = 'refresh_token'
@@ -293,8 +309,12 @@ async def test_authentication_user_wrong_user(auth_repository):
     user = models.User(
         email=user_email,
         password="password",
-        ocupation='pesquisador',
+        ocupation='Desenvolvedor',
         group_id=None,
+        gender="woman",
+        education="bachelors",
+        institution="ISI-ER",
+        age="25-29"
     )
     auth_controller.authenticate_user = AsyncMock(return_value=None)
 
@@ -319,8 +339,12 @@ async def test_authentication_user(auth_repository):
     user = models.User(
         email=user_email,
         password="password",
-        ocupation='pesquisador',
+        ocupation='Desenvolvedor',
         group_id=None,
+        gender="woman",
+        education="bachelors",
+        institution="ISI-ER",
+        age="25-29"
     )
     auth_controller.authenticate_user = AsyncMock(return_value=user)
 
@@ -364,8 +388,12 @@ async def test_confirmed_email_without_temporary_user(auth_repository):
     user = models.User(
         email=user_email,
         password="password",
-        ocupation='pesquisador',
+        ocupation='Desenvolvedor',
         group_id=None,
+        gender="woman",
+        education="bachelors",
+        institution="ISI-ER",
+        age="25-29"
     )
     auth_repository.get_temporary_user_by_id = AsyncMock(return_value=user)
     auth_repository.get_user_by_email = AsyncMock(return_value=True)
@@ -392,8 +420,12 @@ async def test_confirm_email_user(auth_repository):
     user = models.User(
         email=user_email,
         password="password",
-        ocupation='pesquisador',
+        ocupation='Desenvolvedor',
         group_id=None,
+        gender="woman",
+        education="bachelors",
+        institution="ISI-ER",
+        age="25-29"
     )
     auth_repository.get_temporary_user_by_id = AsyncMock(return_value=user)
     auth_repository.get_user_by_email = AsyncMock(return_value=False)
@@ -499,8 +531,12 @@ async def test_validate_and_get_email_from_refresh_token(auth_repository):
     user = models.User(
         email=user_email,
         password="password",
-        ocupation='pesquisador',
+        ocupation='Desenvolvedor',
         group_id=None,
+        gender="woman",
+        education="bachelors",
+        institution="ISI-ER",
+        age="25-29"
     )
     to_encode = {"sub": user_email}
     acess_token_expires_time = datetime.now(timezone.utc) + timedelta(seconds=200)
@@ -588,8 +624,12 @@ async def test_recovery_password(auth_repository):
     user = models.User(
         email=user_email,
         password="password",
-        ocupation='pesquisador',
+        ocupation='Desenvolvedor',
         group_id=None,
+        gender="woman",
+        education="bachelors",
+        institution="ISI-ER",
+        age="25-29"
     )
     auth_repository.get_user_by_email = AsyncMock(return_value=user)
     auth_repository.update_user = AsyncMock(return_value=None)
@@ -605,8 +645,12 @@ async def test_change_password_incorrect_password(auth_repository):
     user = models.User(
         email=user_email,
         password="password",
-        ocupation='pesquisador',
+        ocupation='Desenvolvedor',
         group_id=None,
+        gender="woman",
+        education="bachelors",
+        institution="ISI-ER",
+        age="25-29"
     )
 
     # Act
@@ -627,8 +671,12 @@ async def test_change_password(auth_repository):
     user = models.User(
         email=user_email,
         password="password",
-        ocupation='pesquisador',
+        ocupation='Desenvolvedor',
         group_id=None,
+        gender="woman",
+        education="bachelors",
+        institution="ISI-ER",
+        age="25-29"
     )
     user.password = auth_controller._hash_password(user.password)
     auth_repository.update_user = AsyncMock(return_valueu=user)
