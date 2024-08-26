@@ -1,4 +1,4 @@
-from shapely.geometry import shape, mapping
+from shapely.geometry import shape, mapping, MultiPolygon
 import numpy as np
 
 
@@ -18,10 +18,13 @@ async def mean_stats(geojson_loaded_from_db, geojson_sent_by_user):
 
     # Convert GeoJSON features to Shapely geometries
     geometries1 = [(shape(feature['geometry']), feature['properties']) for feature in geojson_loaded_from_db['features']]
-    try:
-        geometries2 = shape(geojson_sent_by_user.geometry.dict())
-    except Exception as e:
-        print(f"Error converting geometry: {e}")
+    geometry_dict = geojson_sent_by_user.geometry.dict()
+
+    if geometry_dict['type'] == 'MultiPolygon':
+        try:
+            geometries2 = MultiPolygon(geometry_dict['coordinates'])
+        except Exception as e:
+            print(f"Error manually creating MultiPolygon: {e}")
 
     
     num_pixels = len(geojson_sent_by_user.geometry.coordinates[0])
