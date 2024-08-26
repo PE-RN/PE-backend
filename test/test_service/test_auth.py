@@ -32,7 +32,15 @@ async def test_token_user(async_client, user_repository):
     rand_str = ''.join(random.choices(string.ascii_lowercase, k=6))
 
     user = await user_repository.create_user(UserCreate(
-        email=f"rodolfo{rand_str}@is-er.com.br", password=hash.decode('utf-8'), group_id=None, ocupation="pesquisador"))
+        email=f"rodolfo{rand_str}@is-er.com.br",
+        password=hash.decode('utf-8'),
+        group_id=None,
+        ocupation="Desenvolvedor",
+        gender="woman",
+        education="bachelors",
+        institution="ISI-ER",
+        age="25-29"
+    ))
 
     body = {"email": user.email, "password": password}
 
@@ -49,14 +57,23 @@ async def test_create_user(async_client):
 
     # Arrange
     rand_str = ''.join(random.choices(string.ascii_lowercase, k=6))
-    body = {"email": f"rodolfobez15{rand_str}@gmail.com", "password": "test", "group_id": None, "ocupation": "pesquisador"}
+    body = {
+        "email": f"rodolfobez15{rand_str}@gmail.com",
+        "password": "test",
+        "group_id": None,
+        "ocupation": "Desenvolvedor",
+        "gender": "woman",
+        "education": "bachelors",
+        "institution": "ISI-ER",
+        "age": "25-29"
+    }
 
     # Act
     response = await async_client.post("/users", json=body)
 
     # Assert
     assert response.status_code == 201
-    assert all(key in {"email", "group_id", "ocupation", "created_at", "id"} for key in response.json())
+    assert all(key in {"email", "group_id", "ocupation", "created_at", "id", "gender", "institution", "education", "age"} for key in response.json())
 
 
 @pytest.mark.anyio
@@ -64,7 +81,16 @@ async def test_create_user_with_incorrect_ocupation(async_client):
 
     # Arrange
     rand_str = ''.join(random.choices(string.ascii_lowercase, k=6))
-    body = {"email": f"rodolfobez15{rand_str}@gmail.com", "password": "test", "group_id": None, "ocupation": "aleatório"}
+    body = {
+        "email": f"rodolfobez15{rand_str}@gmail.com",
+        "password": "test",
+        "group_id": None,
+        "ocupation": "aleatório",
+        "gender": "woman",
+        "education": "bachelors",
+        "institution": "ISI-ER",
+        "age": "25-29"
+    }
 
     # Act
     response = await async_client.post("/users", json=body)
@@ -84,7 +110,15 @@ async def test_refresh_token_user(async_client, user_repository):
     rand_str = ''.join(random.choices(string.ascii_lowercase, k=6))
 
     user = await user_repository.create_user(UserCreate(
-        email=f"rodolfo{rand_str}@is-er.com.br", password=hash.decode('utf-8'), group_id=None, ocupation="pesquisador"))
+        email=f"rodolfo{rand_str}@is-er.com.br",
+        password=hash.decode('utf-8'),
+        group_id=None,
+        ocupation="Desenvolvedor",
+        gender="woman",
+        education="bachelors",
+        institution="ISI-ER",
+        age="25-29"
+    ))
     body = {"email": user.email, "password": password}
     response_token = await async_client.post("/token", json=body)
     refresh_token = response_token.json()["refresh_token"]
@@ -108,7 +142,15 @@ async def test_change_password(async_client, user_repository):
     rand_str = ''.join(random.choices(string.ascii_lowercase, k=6))
 
     user = await user_repository.create_user(UserCreate(
-        email=f"rodolfo{rand_str}@is-er.com.br", password=hash.decode('utf-8'), group_id=None, ocupation="pesquisador"))
+        email=f"rodolfo{rand_str}@is-er.com.br",
+        password=hash.decode('utf-8'),
+        group_id=None,
+        ocupation="Desenvolvedor",
+        gender="woman",
+        education="bachelors",
+        institution="ISI-ER",
+        age="25-29"
+    ))
 
     body = {"email": user.email, "password": password}
     response_token = await async_client.post("/token", json=body)
@@ -134,7 +176,15 @@ async def test_recovery_password(async_client, user_repository):
     hash = bcrypt.hashpw(bytes_pass, salt)
     rand_str = ''.join(random.choices(string.ascii_lowercase, k=6))
     user = await user_repository.create_user(UserCreate(
-        email=f"rodolfo{rand_str}@is-er.com.br", password=hash.decode('utf-8'), group_id=None, ocupation="pesquisador"))
+        email=f"rodolfo{rand_str}@is-er.com.br",
+        password=hash.decode('utf-8'),
+        group_id=None,
+        ocupation="Desenvolvedor",
+        gender="woman",
+        education="bachelors",
+        institution="ISI-ER",
+        age="25-29"
+    ))
 
     # Act
     response = await async_client.get(f"/recovery-password/{user.email}")

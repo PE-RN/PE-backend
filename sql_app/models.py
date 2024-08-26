@@ -44,8 +44,11 @@ class TemporaryUser(SQLModel, table=True):
     group_id: UUID | None = Field(
         sa_column=Column(pg.UUID),
         default=None,
-
     )
+    gender: str
+    education: str
+    institution: str
+    age: str
 
 
 class User(SQLModel, table=True):
@@ -70,6 +73,10 @@ class User(SQLModel, table=True):
         sa_column=Column(pg.UUID),
         default=None,
     )
+    gender: str
+    education: str
+    institution: str
+    age: str
 
 
 class AnonymousUser(SQLModel, table=True):
