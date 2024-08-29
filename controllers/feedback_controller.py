@@ -51,7 +51,7 @@ class FeedbackController:
                 email_message=email_message,
             )
 
-        return created_feedback
+        return {}
 
     def _create_feedback_email_message(self, to_email, feedback) -> EmailMessage:
 
