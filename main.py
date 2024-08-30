@@ -260,6 +260,8 @@ async def post_anonymous(
 async def post_contact(
     contact: FeedbackCreate,
     user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
-    controller: Annotated[FeedbackController, Depends(FeedbackController.inject_controller)]
+    controller: Annotated[FeedbackController, Depends(FeedbackController.inject_controller)],
+    status_code=status.HTTP_201_CREATED
 ):
+
     return await controller.create_feedback(contact)
