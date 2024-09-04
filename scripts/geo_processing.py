@@ -55,4 +55,4 @@ async def clip_and_get_pixel_values(feature: Feature, src_ds: Dataset):
     pixel_values_list.append(pixel_values_sorted_desc)
 
     return {'type': 'ResponseData', 'properties': {
-        'pixelValues': pixel_values_list, 'name': feature.properties.name}}
+        'pixelValues': pixel_values_list, 'size': len(pixel_values_list[0]) / 4, 'name': feature.properties.name}}

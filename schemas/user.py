@@ -8,3 +8,7 @@ class UserCreate(BaseModel):
     ocupation: OcupationEnum
     password: str
     group_id: int | None = None
+    gender: str
+    education: str
+    institution: str
+    age: str

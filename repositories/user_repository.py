@@ -32,7 +32,16 @@ class UserRepository:
 
     async def create_user(self, user: UserCreate):
 
-        db_user = models.User(email=user.email, password=user.password, ocupation=user.ocupation.value, group_id=user.group_id)
+        db_user = models.User(
+            email=user.email,
+            password=user.password,
+            ocupation=user.ocupation.value,
+            group_id=user.group_id,
+            gender=user.gender,
+            education=user.education,
+            institution=user.institution,
+            age=user.age
+        )
         self.db.add(db_user)
         await self.db.commit()
         await self.db.refresh(db_user)

@@ -19,9 +19,11 @@ async def mean_stats(geojson_loaded_from_db, geojson_sent_by_user):
     # Convert GeoJSON features to Shapely geometries
     geometries1 = [(shape(feature['geometry']), feature['properties']) for feature in geojson_loaded_from_db['features']]
     geometries2 = shape(geojson_sent_by_user.geometry.dict())
+    num_pixels = len(geojson_sent_by_user.geometry.coordinates[0])
 
     # Clip geometries from the first GeoJSON with the union of the second GeoJSON
     clipped_features = []
+    num_pixels = 0
     for geometry, properties in geometries1:
         clipped_geometry = geometry.intersection(geometries2)
         if not clipped_geometry.is_empty:
@@ -30,38 +32,19 @@ async def mean_stats(geojson_loaded_from_db, geojson_sent_by_user):
                 "geometry": mapping(clipped_geometry),
                 "properties": properties
             })
+            num_pixels += 1
 
-    # Extract and calculate mean for each property
-    properties_to_average = [
-        'hourly_mean_speed',
-        'hourly_mean_direction',
-        'monthly_mean_speed',
-        'monthly_mean_direction',
-        'speed_probability',
-        'power_density_probability',
-        'direction_probability',
-        'mean_yearly_speed',
-        'mean_speed',
-        'mean_power_density'
-    ]
-
-    # Define units for each property
-    property_units = {
-        'hourly_mean_speed': 'm/s',
-        'hourly_mean_direction': 'degrees',
-        'monthly_mean_speed': 'm/s',
-        'monthly_mean_direction': 'degrees',
-        'speed_probability': '%',
-        'power_density_probability': '%',
-        'direction_probability': '%',
-        'mean_yearly_speed': 'm/s',
-        'mean_speed': 'm/s',
-        'mean_power_density': 'W/m²'
-    }
+    # Extract all unique properties from clipped features and their units
+    property_units = {}
+    all_properties = set()
+    for feature in clipped_features:
+        for prop, value in feature['properties'].items():
+            all_properties.add(prop)
+            property_units[prop] = value.get('unit', '')
 
     means = {}
     # Calculate the mean values for each property and update the properties of the clipped features
-    for prop in properties_to_average:
+    for prop in all_properties:
         vectors = [feature['properties'][prop]['values'] for feature in clipped_features if prop in feature['properties']]
         if vectors:
             if prop in ['speed_probability', 'power_density_probability']:
@@ -82,5 +65,6 @@ async def mean_stats(geojson_loaded_from_db, geojson_sent_by_user):
     # Create the final JSON object with the calculated means
     return {'type': 'ResponseData', 'properties': {
                     'name': geojson_sent_by_user.properties.name,
-                    'regionValues': means}
+                    'regionValues': means,
+                    'pixels': num_pixels}
             }

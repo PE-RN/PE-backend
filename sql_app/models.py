@@ -44,8 +44,11 @@ class TemporaryUser(SQLModel, table=True):
     group_id: UUID | None = Field(
         sa_column=Column(pg.UUID),
         default=None,
-
     )
+    gender: str
+    education: str
+    institution: str
+    age: str
 
 
 class User(SQLModel, table=True):
@@ -70,6 +73,10 @@ class User(SQLModel, table=True):
         sa_column=Column(pg.UUID),
         default=None,
     )
+    gender: str
+    education: str
+    institution: str
+    age: str
 
 
 class AnonymousUser(SQLModel, table=True):
@@ -144,6 +151,28 @@ class Video(SQLModel, table=True):
     name: str
     path: str
     category: str
+
+
+class Feedback(SQLModel, table=True):
+
+    """
+    This class represents a PDF file in database
+    """
+
+    __tablename__ = "Feedback"
+
+    id: UUID = Field(
+        sa_column=Column(pg.UUID, primary_key=True, unique=True, default=uuid4)
+    )
+    created_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
+    updated_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
+    deleted_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=None, nullable=True))
+    name: str | None = None
+    email: str | None = None
+    message: str | None = None
+    platform_rate: int | None = None
+    intuitivity: int | None = None
+    type: str
 
 
 class Geodata(SQLModel, table=True):
