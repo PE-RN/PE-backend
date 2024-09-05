@@ -3,36 +3,54 @@ version: 2.1
 jobs:
   build:
     docker:
-      - image: cimg/python:3.11
-
+      - image: continuumio/miniconda3
+      - image: postgres:latest
+        environment:
+          POSTGRES_USER: 'postgres'
+          POSTGRES_PASSWORD: 'postgres'
+    
+          
     working_directory: ~/atlaseolica-back-end
     
     steps:
       - checkout
-      # Instalação de dependências
-      - run:
-          name: Install Dependencies
-          command: |
-            python -m pip install --upgrade pip
-            pip install -r requirements.txt
-            pip install pytest flake8 bandit
-      # Execução dos testes
-      - run:
-          name: Run Tests
-          command: |
-            #pytest test/
-      
       # Execução de lint
       - run:
           name: Run Lint
           command: |
+            pip install flake8
             flake8 .
       
       # Execução do Bandit para análise de segurança
       - run:
           name: Run Bandit
           command: |
-            bandit -r . || (echo "Bandit found issues!" && false)
+            pip install bandit
+            bandit -c bandit.yaml -r . || (echo "Bandit found issues!" && false)
+      # Instalação de dependências
+      - run:
+          name: Install Dependencies
+          command: |
+            conda install mamba -n base -c conda-forge
+            mamba create -n atlas python=3.11.8 -c conda-forge --yes
+            source activate atlas
+            mamba install pip gdal rasterio -n atlas -c conda-forge --yes
+            echo 'export PATH="/opt/conda/envs/atlas/bin:$PATH"' >> $BASH_ENV
+            pip install -r requirements.txt
+            pip install pytest
+      # Execução dos testes
+      - run:
+          name: Run Tests
+          command: |
+            export ENVIRONMENT=local
+            export SECRET_KEY=00e6c33aa1a2d3da5fa7766aae8b1dfc5293341f7104a92097a5e26b09640059
+            export ALGORITHM=HS256
+            export ACCESS_TOKEN_EXPIRE_MINUTES=60
+            export REFRESH_TOKEN_EXPIRE_MINUTES=1440
+            export TIFF_NAME_GEO_PROCESS=RN_500M.tif
+            export TOKEN_TYPE=Bearer
+            export FRONT_URL=https://plataforma-energias-rn-production.up.railway.app/
+            pytest test
 
   
 workflows:

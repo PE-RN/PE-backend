@@ -1,22 +1,10 @@
 from pydantic import BaseModel
+from enums.ocupation_enum import OcupationEnum
 
 
-class User(BaseModel):
-    id: int
-    name: str
+class UserCreate(BaseModel):
+
     email: str
-    ocupation: str
-    group_id: int
-
-    class config:
-        orm_mode = True
-
-
-class UserCreate(User):
-
-    id: int
-    name: str
-    email: str
-    ocupation: str
+    ocupation: OcupationEnum
     password: str
-    group_id: int
+    group_id: int | None = None
