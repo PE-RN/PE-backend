@@ -1,10 +1,6 @@
 # VS Code
 .vscode
 
-
-#tif files for scripts
-/scripts/data/
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
