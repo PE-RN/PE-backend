@@ -1,5 +1,8 @@
 from shapely.geometry import shape, mapping
+from shapely.ops import transform
+import pyproj
 import numpy as np
+from functools import partial
 
 
 async def calculate_mean_of_vectors(vectors):
@@ -13,6 +16,14 @@ async def calculate_mean_of_2d_vectors(vectors):
     array = np.array(vectors)
     return np.round(np.mean(array, axis=0), 2).tolist()
 
+def area_in_km2(geom):
+    # Project to an equal-area projection to accurately calculate area in square meters
+    proj = partial(pyproj.transform,
+                   pyproj.Proj(init='epsg:4326'),  # source coordinate system (WGS84)
+                   pyproj.Proj(init='epsg:6933'))  # target coordinate system (Equal Area)
+    projected_geom = transform(proj, geom)
+    return round(projected_geom.area / 1e6, 2)  # convert sq meters to sq km
+
 
 async def mean_stats(geojson_loaded_from_db, geojson_sent_by_user):
 
@@ -22,6 +33,7 @@ async def mean_stats(geojson_loaded_from_db, geojson_sent_by_user):
     geometries2 = shape(geojson_sent_by_user.geometry.dict())
 
     num_pixels = len(geojson_sent_by_user.geometry.coordinates[0])
+    user_area_km2 = area_in_km2(geometries2)
 
     # Clip geometries from the first GeoJSON with the union of the second GeoJSON
     clipped_features = []
@@ -68,5 +80,6 @@ async def mean_stats(geojson_loaded_from_db, geojson_sent_by_user):
     return {'type': 'ResponseData', 'properties': {
                     'name': geojson_sent_by_user.properties.name,
                     'regionValues': means,
-                    'pixels': num_pixels}
+                    'pixels': num_pixels,
+                    'area': user_area_km2}
             }
