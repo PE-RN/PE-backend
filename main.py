@@ -6,6 +6,7 @@ from uuid import UUID
 import sentry_sdk
 from dotenv import load_dotenv, find_dotenv
 from fastapi import Body, Depends, FastAPI, status, Response
+from fastapi.exceptions import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import EmailStr
 
@@ -122,8 +123,12 @@ async def post_process_geo_processing(
     feature: Feature,
     raster_name: str,
     user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
-    controller: Annotated[ProcessController, Depends(ProcessController.inject_controller)]
+    controller: Annotated[ProcessController, Depends(ProcessController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("view_geo_processing"))]
 ):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
     return await controller.process_geo_process(feature, raster_name, user.id.hex)
 
@@ -132,8 +137,13 @@ async def post_process_geo_processing(
 async def post_process_raster(
     raster_name: str,
     controller: Annotated[ProcessController, Depends(ProcessController.inject_controller)],
-    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)]
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("view_raster"))]
 ):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
     return await controller.process_raster(raster_name, user.id.hex)
 
 
@@ -142,8 +152,13 @@ async def get_dash_data(
     feature: Feature,
     energy_type: str,
     user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
-    controller: Annotated[ProcessController, Depends(ProcessController.inject_controller)]
+    controller: Annotated[ProcessController, Depends(ProcessController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("view_dash_data"))]
 ):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
     return await controller.dash_data(feature, energy_type)
 
 
@@ -157,8 +172,12 @@ async def trigger_error():
 async def get_geofiles_polygon(
     table_name: str,
     response: Response,
-    controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)]
+    controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("view_polygon"))]
 ):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
     return await controller.get_polygon(table_name=table_name, response=response)
 
 
@@ -168,8 +187,13 @@ async def get_geofiles_raster(
     x,
     y,
     z,
-    controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)]
+    controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("view_raster"))]
 ):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
     return await controller.get_raster(table_name=table_name, x=x, y=y, z=z)
 
 
@@ -179,9 +203,13 @@ async def get_geofiles_raster(
 async def post_pdf(
     pdf: CreatePdf,
     user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
-    controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
-
+    controller: Annotated[MediaController, Depends(MediaController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("upload_pdf"))]
 ):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
     return await controller.create_pdf(pdf)
 
 
@@ -191,17 +219,26 @@ async def post_pdf(
 async def get_pdf(
     pdf_id: str,
     user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
-    controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
+    controller: Annotated[MediaController, Depends(MediaController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("view_pdf"))]
 ):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
     return await controller.get_pdf(pdf_id)
 
 
 @app.get("/media/pdf", response_model=list[models.PdfFile])
 async def list_pdf(
     user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
-    controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
-
+    controller: Annotated[MediaController, Depends(MediaController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("list_pdf"))]
 ):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
     return await controller.list_pdf()
 
 
@@ -211,9 +248,13 @@ async def list_pdf(
 async def post_video(
     video: CreateVideo,
     user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
-    controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
-
+    controller: Annotated[MediaController, Depends(MediaController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("upload_video"))]
 ):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
     return await controller.create_video(video)
 
 
@@ -223,8 +264,13 @@ async def post_video(
 async def get_video(
     video_id: str,
     user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
-    controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
+    controller: Annotated[MediaController, Depends(MediaController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("view_video"))]
 ):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
     return await controller.get_video(video_id)
 
 
@@ -232,17 +278,26 @@ async def get_video(
          response_model=list[models.Video])
 async def list_video(
     user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
-    controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
-
+    controller: Annotated[MediaController, Depends(MediaController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("list_video"))]
 ):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
     return await controller.list_video()
 
 
 @app.get("/geofiles/download/{table_name}", status_code=status.HTTP_200_OK)
 async def get_file_download(
     table_name: str,
-    controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)]
+    controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("get_geofile"))]
 ):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
     return await controller.get_geofile_download(table_name)
 
 
@@ -260,6 +315,11 @@ async def post_anonymous(
 async def post_contact(
     contact: FeedbackCreate,
     user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
-    controller: Annotated[FeedbackController, Depends(FeedbackController.inject_controller)]
+    controller: Annotated[FeedbackController, Depends(FeedbackController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("create_contact"))]
 ):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
     return await controller.create_feedback(contact)
