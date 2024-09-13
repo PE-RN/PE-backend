@@ -12,6 +12,7 @@ from schemas.email import EmailMessage
 from services.email_service import EmailService
 from sql_app.database import get_db
 from sql_app.models import TemporaryUser
+from sql_app.models import User
 from asyncer import syncify
 from utils.html_generator import HtmlGenerator
 import bcrypt
@@ -110,3 +111,10 @@ class UserController:
                 has_error=True,
                 error_message=str(e)
             )
+
+    async def update_user(self, user: User, user_update: dict):
+
+        if 'password' in user_update:
+            user_update['password'] = self._hash_password(user_update['password'])
+
+        return await self.repository.update_user(user, user_update)
