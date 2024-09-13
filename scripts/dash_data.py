@@ -29,7 +29,6 @@ async def mean_stats(geojson_loaded_from_db, geojson_sent_by_user):
 
     # Convert GeoJSON features to Shapely geometries
     geometries1 = [(shape(feature['geometry']), feature['properties']) for feature in geojson_loaded_from_db['features']]
-    print(geojson_sent_by_user.geometry.dict())
     geometries2 = shape(geojson_sent_by_user.geometry.dict())
 
     num_pixels = len(geojson_sent_by_user.geometry.coordinates[0])

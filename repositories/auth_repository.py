@@ -1,5 +1,6 @@
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from sql_app import models
 
@@ -62,3 +63,18 @@ class AuthRepository:
         statment = select(models.AnonymousUser).filter_by(id=anonymous_user_id).fetch(1)
         anonymous_users = await self.db.exec(statment)
         return anonymous_users.first()
+
+    async def check_permission(self, user: models.User, permission_name: str) -> bool:
+        query = (
+            select(models.User)
+            .options(selectinload(models.User.group).selectinload(models.Group.permissions))
+            .where(models.User.id == user.id)
+        )
+        result = await self.db.exec(query)
+        user_with_group = result.first()
+
+        if user_with_group and user_with_group.group:
+            for permission in user_with_group.group.permissions:
+                if permission.name == permission_name:
+                    return True
+        return False

@@ -2,7 +2,7 @@ import secrets
 import string
 from datetime import datetime, timedelta, timezone
 from os import getenv
-from typing import Annotated
+from typing import Annotated, Callable
 from uuid import UUID
 
 import bcrypt
@@ -252,3 +252,26 @@ class AuthController:
                 has_error=True,
                 error_message=str(e)
             )
+
+    @staticmethod
+    def get_permission_dependency(permission_name: str) -> Callable[..., bool]:
+        @staticmethod
+        def inject_repository(db: Annotated[AsyncSession, Depends(get_db)]) -> AuthRepository:
+
+            return AuthRepository(db=db)
+
+        async def permission_dependency(
+            repository: Annotated[AuthRepository, Depends(inject_repository)],
+            user: User = Depends(AuthController.get_user_from_token)
+        ) -> bool:
+            return await AuthController.user_has_permission(permission_name, repository, user)
+
+        return permission_dependency
+
+    @staticmethod
+    async def user_has_permission(
+        permission_name: str,
+        repository: AuthRepository,
+        user: User
+    ) -> bool:
+        return await repository.check_permission(user, permission_name)
