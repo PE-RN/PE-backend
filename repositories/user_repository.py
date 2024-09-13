@@ -2,6 +2,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 from schemas.user import UserCreate
 from sql_app import models
+import datetime
 
 
 class UserRepository:
@@ -55,3 +56,20 @@ class UserRepository:
         self.db.add(db_log_email)
         await self.db.commit()
         return await self.db.refresh(db_log_email)
+
+    async def update_user(self, user: models.User, user_update: dict):
+
+        for key, value in user_update.items():
+            if key in ('id', 'created_at', 'group'):
+                continue
+
+            if value is None:
+                continue
+
+            setattr(user, key, value)
+
+        user.updated_at = datetime.datetime.now()
+        await self.db.commit()
+        await self.db.refresh(user)
+
+        return user

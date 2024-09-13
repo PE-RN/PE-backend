@@ -76,6 +76,7 @@ class TemporaryUser(SQLModel, table=True):
     education: str
     institution: str
     age: str
+    user: str
 
 
 class User(SQLModel, table=True):
@@ -105,6 +106,7 @@ class User(SQLModel, table=True):
     education: str
     institution: str
     age: str
+    user: str
 
 
 class AnonymousUser(SQLModel, table=True):

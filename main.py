@@ -100,6 +100,23 @@ async def post_users(
     return await controller.create_temporary_user(user)
 
 
+@app.put("/users",
+          response_model=models.User,
+          response_model_exclude={"password", "created_at", "updated_at", "deleted_at"},
+          status_code=status.HTTP_200_OK)
+async def update_users(
+    user_update: dict,
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[UserController, Depends(UserController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("update_user"))]
+):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    return await controller.update_user(user, user_update)
+
+
 @app.get("/recovery-password/{user_email}", status_code=status.HTTP_200_OK)
 async def get_recovery_password(
     user_email: str,
