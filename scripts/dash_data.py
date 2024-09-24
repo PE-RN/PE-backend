@@ -1,14 +1,14 @@
 from shapely.geometry import shape, mapping
 from shapely.ops import transform
-import pyproj
 import numpy as np
-from functools import partial
+from pyproj import CRS, Transformer
+from shapely.ops import transform
 
 
 async def calculate_mean_of_vectors(vectors):
 
     array = np.array(vectors)
-    return np.mean(array, axis=0).round(2).astype(np.float16)
+    return np.round(np.mean(array, axis=0), 2)
 
 
 async def calculate_mean_of_2d_vectors(vectors):
@@ -16,13 +16,26 @@ async def calculate_mean_of_2d_vectors(vectors):
     array = np.array(vectors)
     return np.round(np.mean(array, axis=0), 2).tolist()
 
-def area_in_km2(geom):
-    # Project to an equal-area projection to accurately calculate area in square meters
-    proj = partial(pyproj.transform,
-                   pyproj.Proj(init='epsg:4326'),  # source coordinate system (WGS84)
-                   pyproj.Proj(init='epsg:6933'))  # target coordinate system (Equal Area)
-    projected_geom = transform(proj, geom)
-    return round(projected_geom.area / 1e6, 2)  # convert sq meters to sq km
+
+async def calculate_sum_data(vectors):
+
+    array = np.array(vectors)
+    return np.round(np.sum(array, axis=0), 2)
+
+
+async def area_in_km2(geom):
+    # Define the source and target coordinate reference systems
+    source_crs = CRS('EPSG:4326')  # WGS84
+    target_crs = CRS('EPSG:6933')  # Equal Area projection
+
+    # Create a transformer that performs the projection transformation
+    transformer = Transformer.from_crs(source_crs, target_crs, always_xy=True)
+
+    # Transform the geometry using the transformer
+    projected_geom = transform(transformer.transform, geom)
+
+    # Calculate the area in square kilometers
+    return round(projected_geom.area / 1e6, 2)  # convert square meters to square kilometers
 
 
 async def mean_stats(geojson_loaded_from_db, geojson_sent_by_user):
@@ -32,7 +45,7 @@ async def mean_stats(geojson_loaded_from_db, geojson_sent_by_user):
     geometries2 = shape(geojson_sent_by_user.geometry.dict())
 
     num_pixels = len(geojson_sent_by_user.geometry.coordinates[0])
-    user_area_km2 = area_in_km2(geometries2)
+    user_area_km2 = await area_in_km2(geometries2)
 
     # Clip geometries from the first GeoJSON with the union of the second GeoJSON
     clipped_features = []
@@ -60,7 +73,10 @@ async def mean_stats(geojson_loaded_from_db, geojson_sent_by_user):
     for prop in all_properties:
         vectors = [feature['properties'][prop]['values'] for feature in clipped_features if prop in feature['properties']]
         if vectors:
-            if prop in ['speed_probability', 'power_density_probability']:
+            if prop == 'total_energy_production':
+                mean_value = await calculate_sum_data(vectors)
+                mean_value = mean_value.tolist()
+            elif prop in ['speed_probability', 'power_density_probability']:
                 mean_value = await calculate_mean_of_2d_vectors(vectors)
             else:
                 mean_value = await calculate_mean_of_vectors(vectors)
