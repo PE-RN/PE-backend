@@ -8,7 +8,7 @@ from osgeo.gdal import Dataset
 from schemas.feature import Feature
 
 
-async def clip_and_get_pixel_values(feature: Feature, src_ds: Dataset):
+async def clip_and_get_pixel_values(feature: Feature, src_ds: Dataset, raster_name: str):
 
     if not src_ds:
         raise RuntimeError("Could not open source dataset")
@@ -20,13 +20,19 @@ async def clip_and_get_pixel_values(feature: Feature, src_ds: Dataset):
     geometry = json.dumps(feature.geometry.model_dump())
     # Convert GeoJSON to an OGR geometry
     geom = await asyncify(ogr.CreateGeometryFromJson)(geometry)
+
+    # Apply a buffer to the geometry, specify the distance of the buffer in the units of the spatial reference
+    if raster_name.split('_')[0] == 'wind':
+        buffered_geom = await asyncify(geom.Buffer)(.35356/111.11) # .35356 = .25 * sqrt(2) ; .25 = distancia entre pixels / 2 ; sqrt(2) = diagonal do quadrado
+    elif raster_name.split('_')[0] == 'ghi':
+        buffered_geom = await asyncify(geom.Buffer)(.35356/111.11)
     # Prepare an in-memory raster for the mask
     mem_driver = await asyncify(gdal.GetDriverByName)('MEM')
     mask_ds = mem_driver.Create('', src_ds.RasterXSize, src_ds.RasterYSize, 1, gdal.GDT_Byte)
     mask_ds.SetGeoTransform(src_ds.GetGeoTransform())
     mask_ds.SetProjection(src_ds.GetProjection())
 
-    # Prepare an in-memory vector layer to hold the geometry
+    # Prepare an in-memory vector layer to hold the buffered geometry
     geom_srs = osr.SpatialReference()
     await asyncify(geom_srs.ImportFromEPSG)(4674)  # adjust as needed
     driver = await asyncify(ogr.GetDriverByName)('Memory')
@@ -34,10 +40,10 @@ async def clip_and_get_pixel_values(feature: Feature, src_ds: Dataset):
     geom_layer = await asyncify(geom_ds.CreateLayer)('geom_layer', srs=geom_srs)
     geom_defn = geom_layer.GetLayerDefn()
     geom_feature = ogr.Feature(geom_defn)
-    geom_feature.SetGeometry(geom)
+    geom_feature.SetGeometry(buffered_geom)
     await asyncify(geom_layer.CreateFeature)(geom_feature)
 
-    # Rasterize directly using the geometry
+    # Rasterize directly using the buffered geometry
     await asyncify(gdal.RasterizeLayer)(mask_ds, [1], geom_layer, burn_values=[1])
 
     # Create a masked array
