@@ -121,18 +121,25 @@ class AuthController:
         return None
 
     async def confirm_email(self, temporary_user_id: UUID) -> None:
-
         temporary_user = await self.repository.get_temporary_user_by_id(temporary_user_id)
-        if temporary_user:
-            user = await self.repository.get_user_by_email(temporary_user.email)
-            if user:
-                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Usuário já confirmado!")
+        if not temporary_user:
+            # Redirect with an error message if the user is not a temporary user
+            return RedirectResponse(
+                url=f"{getenv('FRONT_URL')}pages/login/login.html?error=Usuário não encontrado!",
+                status_code=status.HTTP_302_FOUND
+            )
 
-            await self.repository.create_user_from_temporary(temporary_user)
-            await self.repository.delete_temporary_user(temporary_user)
-            return RedirectResponse(url=f"{getenv('FRONT_URL')}pages/login/login.html", status_code=status.HTTP_302_FOUND)
+        user = await self.repository.get_user_by_email(temporary_user.email)
+        if user:
+            # User already exists, raise an exception or handle as needed
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Usuário já confirmado!")
 
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado!")
+        # Proceed to create user from temporary and delete temporary record
+        await self.repository.create_user_from_temporary(temporary_user)
+        await self.repository.delete_temporary_user(temporary_user)
+
+        # Redirect to login page normally
+        return RedirectResponse(url=f"{getenv('FRONT_URL')}pages/login/login.html?alert=Cadastro confirmado!!", status_code=status.HTTP_302_FOUND)
 
     async def validate_and_get_email_from_refresh_token(self, token: str) -> str:
 
@@ -229,7 +236,7 @@ class AuthController:
             img_state_cid='estado',
             new_password=new_password)
 
-        return EmailMessage.with_default_logo_images(to_email=to_email, subject="Recuperação de senha Plataforma Atlas", html_content=content)
+        return EmailMessage.with_default_logo_images(to_email=to_email, subject="Recuperação de senha Plataforma de Energias do RN", html_content=content)
 
     def _send_email_recovery_password_wrapper(self, email_message: EmailMessage):
         try:

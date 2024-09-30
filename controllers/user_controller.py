@@ -87,7 +87,7 @@ class UserController:
             contact_link=f"{getenv('FRONT_URL')}pages/contact/contact.html",
             confirmation_email_link=link_url)
 
-        return EmailMessage.with_default_logo_images(html_content=content, subject="Confirmação de email Plataforma Atlas", to_email=to_email)
+        return EmailMessage.with_default_logo_images(html_content=content, subject="Confirmação de email Plataforma de Energias do RN", to_email=to_email)
 
     def _send_email_account_confirmation_wrapper(self, email_message: EmailMessage, temporary_user: TemporaryUser):
 
