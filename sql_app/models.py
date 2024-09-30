@@ -2,7 +2,12 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 import sqlalchemy.dialects.postgresql as pg
-from sqlmodel import Column, Field, SQLModel
+from sqlmodel import Column, Field, SQLModel, Relationship
+
+
+class GroupPermissionLink(SQLModel, table=True):
+    group_id: int | None = Field(default=None, foreign_key="Groups.id", primary_key=True)
+    permission_id: int | None = Field(default=None, foreign_key="permissions.id", primary_key=True)
 
 
 class Group(SQLModel, table=True):
@@ -21,6 +26,28 @@ class Group(SQLModel, table=True):
     deleted_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=None, nullable=True))
     name: str = Field(index=True)
     description: str
+    users: list["User"] = Relationship(back_populates="group")
+    anonymous_users: list["AnonymousUser"] = Relationship(back_populates="group")
+    permissions: list["Permission"] = Relationship(back_populates="groups", link_model=GroupPermissionLink)
+
+
+class Permission(SQLModel, table=True):
+
+    """
+    This class represents a permissions in database
+    """
+
+    __tablename__ = "permissions"
+
+    id: UUID = Field(
+        sa_column=Column(pg.UUID, primary_key=True, unique=True, default=uuid4)
+    )
+    created_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
+    updated_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
+    deleted_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=None, nullable=True))
+    name: str = Field(index=True)
+    description: str
+    groups: list["Group"] = Relationship(back_populates="permissions", link_model=GroupPermissionLink)
 
 
 class TemporaryUser(SQLModel, table=True):
@@ -42,10 +69,14 @@ class TemporaryUser(SQLModel, table=True):
     password: str
     ocupation: str
     group_id: UUID | None = Field(
-        sa_column=Column(pg.UUID),
-        default=None,
-
+        default='5c190872-1800-4c8c-9411-23937d0a8d52',
+        foreign_key="Groups.id"
     )
+    gender: str
+    education: str
+    institution: str
+    age: str
+    user: str
 
 
 class User(SQLModel, table=True):
@@ -67,9 +98,15 @@ class User(SQLModel, table=True):
     ocupation: str
     is_active: bool = Field(default=True)
     group_id: UUID | None = Field(
-        sa_column=Column(pg.UUID),
-        default=None,
+        default='5c190872-1800-4c8c-9411-23937d0a8d52',
+        foreign_key="Groups.id"
     )
+    group: Group | None = Relationship(back_populates="users")
+    gender: str
+    education: str
+    institution: str
+    age: str
+    user: str
 
 
 class AnonymousUser(SQLModel, table=True):
@@ -84,6 +121,11 @@ class AnonymousUser(SQLModel, table=True):
         sa_column=Column(pg.UUID, primary_key=True, unique=True, default=uuid4)
     )
     ocupation: str
+    group_id: UUID | None = Field(
+        default=None,
+        foreign_key="Groups.id"
+    )
+    group: Group | None = Relationship(back_populates="anonymous_users")
 
 
 class LogsEmail(SQLModel, table=True):

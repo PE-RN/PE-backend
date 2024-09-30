@@ -13,7 +13,7 @@ from main import app
 from sql_app.database import get_db
 
 async_engine = create_async_engine(
-    'postgresql+asyncpg://postgres:postgres@localhost:5432/',
+    'postgresql+asyncpg://postgres:cd4bCgACc5a15eddEF22FG5eGeA1adAa@roundhouse.proxy.rlwy.net:32842/atlas',
     poolclass=StaticPool,
 )
 TesteSessionLocal = sessionmaker(
