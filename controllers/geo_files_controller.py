@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import Depends, status
+from fastapi import Depends, status, UploadFile
 from fastapi.responses import StreamingResponse
 from fastapi.exceptions import HTTPException
 from io import BytesIO
@@ -10,6 +10,8 @@ from repositories.geo_repository import GeoRepository
 from schemas.geojson import GeoJSON
 from sentry_sdk import capture_exception
 from sql_app.database import get_db
+
+import os
 
 
 class GeoFilesController:
@@ -64,3 +66,26 @@ class GeoFilesController:
         except Exception as error:
             capture_exception(error)
             return HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error)
+
+    async def upload_raster(
+        self,
+        fd: int,
+        file: UploadFile,
+        raster_path: str,
+        table_name: str,
+        srid: int
+    ) -> None:
+
+        try:
+            with os.fdopen(fd, "wb") as tmp:
+                tmp.write(await file.read())
+
+            return await self.repository.upload_raster(raster_path, table_name, srid, False)
+
+        except Exception as error:
+            capture_exception(error)
+            return HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error)
+
+        finally:
+            if os.path.exists(raster_path):
+                os.unlink(raster_path)

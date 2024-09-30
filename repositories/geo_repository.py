@@ -29,43 +29,27 @@ class GeoRepository:
         if_exists_option = 'append' if increment else 'replace'
         polygon.to_postgis(table_name, engine, if_exists=if_exists_option)
 
-    def upload_raster(
+    async def upload_raster(
         self,
         raster_path: str,
         table_name: str,
         srid: int,
         increment: bool = True,
-        new_columns: list = None
     ) -> None:
         table_name = table_name.replace("-", "_")
         # Drop the previous table if isnt to increment
         if not increment:
             drop_table_command = f"DROP TABLE IF EXISTS {table_name};"
-            self.db.execute(text(drop_table_command))
-            self.db.commit()
+            await self.db.exec(text(drop_table_command))
+            await self.db.commit()
 
-        database_url = getenv('DATABASE_URL')
+        database_url = getenv('SYNC_DATABASE_URL')
         # Upload the raster - change the database
         raster2pgsql_command = f"""
             raster2pgsql -F -I -C -s {srid} -t 256x256 {raster_path} {table_name}  |
             psql {database_url}
         """
-        subprocess.run(raster2pgsql_command, shell=True)
-
-        if (not new_columns):
-            return
-
-        # Add the new columns to the new rows
-        metadata = MetaData(bind=self.db.bind)
-        raster_table = Table(table_name, metadata, autoload=True)
-        raster_table_update = raster_table.update()
-
-        first_column = next(iter(new_columns))
-        raster_table_update.where(getattr(raster_table.c, first_column) == None)
-        raster_table_update.values({column: value for column, value in new_columns.items()})
-
-        self.db.execute(text(raster_table_update))
-        self.db.commit()
+        return await subprocess.run(raster2pgsql_command, shell=True)
 
     async def get_polygon_by_name(self, table_name) -> GeoJSON:
 
