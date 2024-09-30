@@ -1,11 +1,12 @@
 import os
+import tempfile
 from contextlib import asynccontextmanager
 from typing import Annotated
 from uuid import UUID
 
 import sentry_sdk
 from dotenv import load_dotenv, find_dotenv
-from fastapi import Body, Depends, FastAPI, status, Response
+from fastapi import Body, Depends, FastAPI, status, Response, UploadFile
 from fastapi.exceptions import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import EmailStr
@@ -340,3 +341,24 @@ async def post_contact(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
     return await controller.create_feedback(contact)
+
+
+@app.put("/geofiles/upload/{table_name}", status_code=status.HTTP_200_OK)
+async def upload_geofile(
+    table_name: str,
+    file: UploadFile,
+    controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)],
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("post_geofile"))]
+):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    extension = os.path.splitext(file.filename)[1]
+    fd, file_path = tempfile.mkstemp(prefix='parser_', suffix=extension)
+
+    if extension not in ('.tif', '.tiff'):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Extensão invalida.")
+
+    return await controller.upload_raster(fd, file, file_path, table_name, 4674)
