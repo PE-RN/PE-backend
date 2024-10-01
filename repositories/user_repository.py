@@ -57,7 +57,7 @@ class UserRepository:
         await self.db.commit()
         return await self.db.refresh(db_log_email)
 
-    async def update_user(self, user: models.User, user_update: dict):
+    async def update_user_self(self, user: models.User, user_update: dict):
 
         for key, value in user_update.items():
             if key in ('id', 'created_at', 'group'):
@@ -86,3 +86,22 @@ class UserRepository:
 
         users = await self.db.exec(statment)
         return users.first()
+
+    async def update_user(self, id: str, user_update: dict):
+
+        user = await self.get_user_by_id(id)
+
+        for key, value in user_update.items():
+            if key in ('id', 'created_at', 'group'):
+                continue
+
+            if value is None:
+                continue
+
+            setattr(user, key, value)
+
+        user.updated_at = datetime.datetime.now()
+        await self.db.commit()
+        await self.db.refresh(user)
+
+        return user

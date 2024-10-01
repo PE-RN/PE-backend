@@ -112,12 +112,15 @@ class UserController:
                 error_message=str(e)
             )
 
-    async def update_user(self, user: User, user_update: dict):
+    async def update_user(self, user_update: dict, user: User = None, id: str = None):
 
         if 'password' in user_update:
             user_update['password'] = self._hash_password(user_update['password'])
 
-        return await self.repository.update_user(user, user_update)
+        if not id:
+            return await self.repository.update_user_self(user, user_update)
+
+        return await self.repository.update_user(id, user_update)
 
     async def get_all_users(self):
 
