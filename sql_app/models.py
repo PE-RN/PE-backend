@@ -6,8 +6,8 @@ from sqlmodel import Column, Field, SQLModel, Relationship
 
 
 class GroupPermissionLink(SQLModel, table=True):
-    group_id: int | None = Field(default=None, foreign_key="Groups.id", primary_key=True)
-    permission_id: int | None = Field(default=None, foreign_key="permissions.id", primary_key=True)
+    group_id: UUID | None = Field(default=None, foreign_key="Groups.id", primary_key=True)
+    permission_id: UUID | None = Field(default=None, foreign_key="permissions.id", primary_key=True)
 
 
 class Group(SQLModel, table=True):
