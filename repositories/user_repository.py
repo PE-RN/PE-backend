@@ -79,3 +79,10 @@ class UserRepository:
         statment = select(models.User)
         users = await self.db.exec(statment)
         return users.fetchall()
+
+    async def get_user_by_id(self, id: str):
+
+        statment = select(models.User).filter_by(id=id).fetch(1)
+
+        users = await self.db.exec(statment)
+        return users.first()
