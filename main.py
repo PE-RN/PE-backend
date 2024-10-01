@@ -424,3 +424,20 @@ async def update_user(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
     return await controller.update_user(user_update, id=id)
+
+
+@app.put("/permission",
+          response_model=models.Permission,
+          response_model_exclude={"created_at", "updated_at", "deleted_at"},
+          status_code=status.HTTP_200_OK)
+async def create_permission(
+    permission: dict,
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[UserController, Depends(UserController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("create_permission"))]
+):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    return await controller.create_permission(permission)

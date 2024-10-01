@@ -129,3 +129,10 @@ class UserController:
     async def get_user_by_id(self, id: str):
 
         return await self.repository.get_user_by_id(id)
+
+    async def create_permission(self, permission: dict):
+
+        if 'description' not in permission:
+            permission['description'] = ''
+
+        return await self.repository.create_permission(permission)

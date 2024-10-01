@@ -105,3 +105,15 @@ class UserRepository:
         await self.db.refresh(user)
 
         return user
+
+    async def create_permission(self, permission: dict):
+
+        new_permission = models.Permission(
+            name=permission['name'],
+            description=permission['description']
+        )
+
+        self.db.add(new_permission)
+        await self.db.commit()
+        await self.db.refresh(new_permission)
+        return new_permission
