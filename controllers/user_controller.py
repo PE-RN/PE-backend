@@ -122,3 +122,7 @@ class UserController:
     async def get_all_users(self):
 
         return await self.repository.get_all_users()
+
+    async def get_user_by_id(self, id: str):
+
+        return await self.repository.get_user_by_id(id)
