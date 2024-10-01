@@ -1,7 +1,7 @@
 import os
 import tempfile
 from contextlib import asynccontextmanager
-from typing import Annotated
+from typing import Annotated, List
 from uuid import UUID
 
 import sentry_sdk
@@ -362,3 +362,18 @@ async def upload_geofile(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Extensão invalida.")
 
     return await controller.upload_raster(fd, file, file_path, table_name, 4674)
+
+
+@app.get("/users",
+          response_model=List[models.UserListResponse],
+          status_code=status.HTTP_200_OK)
+async def get_users(
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[UserController, Depends(UserController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("get_user_list"))]
+):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    return await controller.get_all_users()
