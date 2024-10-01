@@ -118,3 +118,7 @@ class UserController:
             user_update['password'] = self._hash_password(user_update['password'])
 
         return await self.repository.update_user(user, user_update)
+
+    async def get_all_users(self):
+
+        return await self.repository.get_all_users()

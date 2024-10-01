@@ -73,3 +73,9 @@ class UserRepository:
         await self.db.refresh(user)
 
         return user
+
+    async def get_all_users(self):
+
+        statment = select(models.User)
+        users = await self.db.exec(statment)
+        return users.fetchall()

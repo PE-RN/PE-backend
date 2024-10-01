@@ -109,6 +109,21 @@ class User(SQLModel, table=True):
     user: str
 
 
+class UserListResponse(SQLModel, table=False):
+
+    """
+    This class represents a list of users in database
+    """
+
+    id: UUID = Field(
+        sa_column=Column(pg.UUID, primary_key=True, unique=True, default=uuid4)
+    )
+    user: str
+
+    class Config:
+        from_attributes = True
+
+
 class AnonymousUser(SQLModel, table=True):
 
     """
