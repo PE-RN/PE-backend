@@ -136,3 +136,53 @@ class UserController:
             permission['description'] = ''
 
         return await self.repository.create_permission(permission)
+
+    async def create_group(self, group: dict):
+
+        if 'description' not in group:
+            group['description'] = ''
+
+        return await self.repository.create_group(group)
+
+    async def add_permissions_to_group(self, group_id: str, permissions_names: list):
+
+        group = await self.repository.get_group(group_id)
+
+        if not group:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Grupo não encontrado")
+
+        permissions = await self.repository.get_permissions_by_names(permissions_names)
+
+        if len(permissions) == 0:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Permissões não encontradas")
+
+        for permission in permissions:
+            if permission not in group.permissions:
+                group.permissions.append(permission)
+
+        await self.repository.update_permissions_to_group(group)
+
+        return group
+
+    async def remove_permissions_to_group(self, group_id: str, permissions_names: list):
+
+        group = await self.repository.get_group(group_id)
+
+        if not group:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Grupo não encontrado")
+
+        if len(group.permissions) == 0:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="O grupo não possui permissões para serem removidas")
+
+        permissions = await self.repository.get_permissions_by_names(permissions_names)
+
+        if len(permissions) == 0:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Permissões não encontradas")
+
+        for permission in permissions:
+            if permission in group.permissions:
+                group.permissions.remove(permission)
+
+        await self.repository.update_permissions_to_group(group)
+
+        return group

@@ -1,3 +1,4 @@
+from sqlalchemy.orm import joinedload
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 from schemas.user import UserCreate
@@ -117,3 +118,34 @@ class UserRepository:
         await self.db.commit()
         await self.db.refresh(new_permission)
         return new_permission
+
+    async def create_group(self, group: dict):
+
+        new_group = models.Group(
+            name=group['name'],
+            description=group['description']
+        )
+
+        self.db.add(new_group)
+        await self.db.commit()
+        await self.db.refresh(new_group)
+        return new_group
+
+    async def get_group(self, group_id: str):
+
+        statment = select(models.Group).options(joinedload(models.Group.permissions)).filter_by(id=group_id)
+        group = await self.db.exec(statment)
+        return group.first()
+
+    async def get_permissions_by_names(self, permissions_names: list):
+
+        statment = select(models.Permission).where(models.Permission.name.in_(permissions_names))
+        users = await self.db.exec(statment)
+        return users.fetchall()
+
+    async def update_permissions_to_group(self, group: models.Group):
+
+        await self.db.commit()
+        await self.db.refresh(group)
+
+        return group

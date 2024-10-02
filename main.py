@@ -426,7 +426,7 @@ async def update_user(
     return await controller.update_user(user_update, id=id)
 
 
-@app.put("/permission",
+@app.post("/permission",
           response_model=models.Permission,
           response_model_exclude={"created_at", "updated_at", "deleted_at"},
           status_code=status.HTTP_200_OK)
@@ -441,3 +441,56 @@ async def create_permission(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
     return await controller.create_permission(permission)
+
+
+@app.post("/group",
+          response_model=models.Group,
+          response_model_exclude={"created_at", "updated_at", "deleted_at"},
+          status_code=status.HTTP_200_OK)
+async def create_group(
+    group: dict,
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[UserController, Depends(UserController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("create_group"))]
+):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    return await controller.create_group(group)
+
+
+@app.put("/group/{group_id}/add",
+          response_model=models.Group,
+          response_model_exclude={"created_at", "updated_at", "deleted_at"},
+          status_code=status.HTTP_200_OK)
+async def add_permissions_to_group(
+    group_id: str,
+    permissions: dict,
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[UserController, Depends(UserController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("edit_group"))]
+):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    return await controller.add_permissions_to_group(group_id, permissions['permissions'])
+
+
+@app.put("/group/{group_id}/remove",
+          response_model=models.Group,
+          response_model_exclude={"created_at", "updated_at", "deleted_at"},
+          status_code=status.HTTP_200_OK)
+async def remove_permissions_to_group(
+    group_id: str,
+    permissions: dict,
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[UserController, Depends(UserController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("edit_group"))]
+):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    return await controller.remove_permissions_to_group(group_id, permissions['permissions'])
