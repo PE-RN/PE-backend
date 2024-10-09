@@ -6,6 +6,7 @@ from fastapi.exceptions import HTTPException
 from sentry_sdk import capture_exception
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from controllers.auth_controller import AuthController
 from repositories.user_repository import UserRepository
 from schemas.user import UserCreate
 from schemas.email import EmailMessage
@@ -20,13 +21,16 @@ import bcrypt
 
 class UserController:
 
-    def __init__(self, repository: UserRepository, email_service: EmailService, background_tasks: BackgroundTasks):
+    def __init__(self, repository: UserRepository, email_service: EmailService, background_tasks: BackgroundTasks, auth_controller: AuthController):
         self.repository = repository
         self.email_service = email_service
         self.background_tasks = background_tasks
+        self.auth_controller = auth_controller
 
     @staticmethod
     async def inject_controller(background_tasks: BackgroundTasks, db: Annotated[AsyncSession, Depends(get_db)]):
+
+        auth_controller = AuthController.inject_controller(background_tasks, db)
 
         return UserController(
             repository=UserRepository(db=db),
@@ -36,7 +40,8 @@ class UserController:
                 email=getenv("EMAIL_SMTP"),
                 password=getenv("PASSWORD_SMTP")
             ),
-            background_tasks=background_tasks
+            background_tasks=background_tasks,
+            auth_controller=auth_controller
         )
 
     def _replace_safety_url_for_sender_pattern(self, url: str) -> str:
@@ -114,8 +119,22 @@ class UserController:
 
     async def update_user(self, user_update: dict, user: User = None, id: str = None):
 
-        if 'password' in user_update:
-            user_update['password'] = self._hash_password(user_update['password'])
+        if 'current_password' in user_update and 'new_password' in user_update:
+
+            if user_update['current_password'] is not None and user_update['new_password'] is None:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe a nova senha")
+
+            if user_update['new_password'] is not None and user_update['current_password'] is None:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe a senha atual")
+
+            if user_update['new_password'] is not None and user_update['current_password'] is not None:
+                if not self.auth_controller.verify_password_hash(user_update['current_password'], user.password):
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Senha atual incorreta, verifique e tente novamente")
+
+                user_update['password'] = self._hash_password(user_update['new_password'])
+
+            user_update.pop('new_password')
+            user_update.pop('current_password')
 
         if not id:
             return await self.repository.update_user_self(user, user_update)
