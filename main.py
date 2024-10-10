@@ -20,7 +20,7 @@ from controllers.media_controller import MediaController
 from schemas.feature import Feature
 from schemas.feedback import FeedbackCreate
 from schemas.token import Token
-from schemas.user import UserCreate
+from schemas.user import UserCreate, UserUpdate
 from schemas.media import CreatePdf, CreateVideo
 from sql_app import models
 from sql_app.database import init_db
@@ -106,7 +106,7 @@ async def post_users(
           response_model_exclude={"password", "created_at", "updated_at", "deleted_at"},
           status_code=status.HTTP_200_OK)
 async def update_users(
-    user_update: dict,
+    user_update: UserUpdate,
     user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
     controller: Annotated[UserController, Depends(UserController.inject_controller)],
     has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("update_user"))]
@@ -367,7 +367,7 @@ async def upload_geofile(
 @app.get("/users",
           response_model=List[models.UserListResponse],
           status_code=status.HTTP_200_OK)
-async def get_users(
+async def get_users_list(
     user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
     controller: Annotated[UserController, Depends(UserController.inject_controller)],
     has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("get_user_list"))]
