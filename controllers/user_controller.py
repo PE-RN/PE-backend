@@ -71,12 +71,11 @@ class UserController:
             f"{getenv('HOST_URL')}confirm-email/{temporary_user.id}",
         )
 
-        if getenv('ENVIRONMENT') != 'local':
-            self.background_tasks.add_task(
-                self._send_email_account_confirmation_wrapper,
-                email_message=email_message,
-                temporary_user=temporary_user
-            )
+        self.background_tasks.add_task(
+            self._send_email_account_confirmation_wrapper,
+            email_message=email_message,
+            temporary_user=temporary_user
+        )
 
         return temporary_user
 

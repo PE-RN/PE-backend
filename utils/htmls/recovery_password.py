@@ -172,10 +172,8 @@ def recovery_password(user_email, new_password, style, enter_link, img_isi_er_ci
                                     Se tiver alguma dúvida, acesse o menu <a href="{contact_link}">Contato</a> diretamente na Plataforma.
                                 </p>
                                 <footer>
-                                    <img src="./assets/GOVERNO_DO_ESTADO_SEDEC.svg" width="140px"
-                                    alt="Logotipo do Governo do Rio Grande do Norte e Secretaria de Estado do Desenvolvimento Econômico - SEDEC">
-                                    <img src="./assets/ISI_ER.svg" width="180px"
-                                    alt="Logotipo do SENAI ISI-ER | Instituto de Inovação em Energias Renováveis">
+                                    <img src="cid:{img_state_cid}" width="140px" alt="Logotipo do Governo do Rio Grande do Norte e Secretaria de Estado do Desenvolvimento Econômico - SEDEC">
+                                    <img src="cid:{img_isi_er_cid}" width="180px" alt="Logotipo do SENAI ISI-ER | Instituto de Inovação em Energias Renováveis">
                                 </footer>
                             </td>
                         </tr>

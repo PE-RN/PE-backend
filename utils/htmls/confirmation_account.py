@@ -26,11 +26,7 @@ def get_style():
                 font-size: 36px;
                 line-height: 42px;
                 margin-bottom: 20px;
-            }
-
-            .logo {
-                font-size: 80px;
-            }
+            }         
 
             .content {
                 padding: 40px 80px;
@@ -74,18 +70,21 @@ def get_style():
 
             .footer {
                 background-color: #f0f0f0;
-                padding: 40px 80px;
+                padding: 20px 80px;
             }
 
             .footer p {
-                font-size: 20px;
+                font-size: 12px;
                 line-height: 24px;
                 color: #666;
             }
 
             .footer footer{
                 padding-top: 40px;
-                text-align: center;
+                display: flex;
+                justify-content: center;
+                align-items: flex-end;
+                gap: 80px;
             }
         </style>
     """
@@ -113,9 +112,10 @@ def get_confirmation_email_html(style, user_email, confirmation_email_link, cont
                                     <div class="logo">
                                         <img src="cid:{img_logo_cid}" alt="#">
                                     </div>
-                                    <p>Confirmação de E-mail</p>
+                                    
                                 </div>
                                 <div class="content">
+                                    <h1>Confirmação de E-mail</h1>
                                     <p>
                                         Olá, {user_email},
                                         <br>
@@ -161,8 +161,10 @@ def get_confirmation_email_html(style, user_email, confirmation_email_link, cont
                                     Se tiver alguma dúvida, acesse o menu <a href="{contact_link}">Contato</a> diretamente na Plataforma.
                                 </p>
                                 <footer>
-                                    <img src="cid:{img_state_cid}" alt="#" style="margin-right: 120px;">
-                                    <img src="cid:{img_isi_er_cid}" alt="#" style="margin-left: 120px;">
+                                    <img src="cid:{img_state_cid}" width="140px"
+                                    alt="Logotipo do Governo do Rio Grande do Norte e da Secretaria de Estado do Desenvolvimento Econômico (SEDEC)">
+                                    <img src="cid:{img_isi_er_cid}" width="180px"
+                                    alt="Logotipo do Instituto SENAI de Inovação em Energias Renováveis (ISI-ER)">
                                 </footer>
                             </td>
                         </tr>
