@@ -203,8 +203,8 @@ class AuthController:
         user.password = temporary_password_hashed
         await self.repository.update_user(user)
         email_message = self._create_recovery_email_message(temporary_password, user.email)
-        if getenv('ENVIRONMENT', 'local') != 'local':
-            self.background_tasks.add_task(self._send_email_recovery_password_wrapper, email_message=email_message)
+
+        self.background_tasks.add_task(self._send_email_recovery_password_wrapper, email_message=email_message)
 
     async def change_password(self, user: User, actual_password: str, new_password: str) -> None:
 
