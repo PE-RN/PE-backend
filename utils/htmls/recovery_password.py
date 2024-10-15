@@ -162,8 +162,8 @@ def recovery_password(user_email, new_password, style, enter_link, img_isi_er_ci
                         </tr>
                         <!-- Rodapé do email -->
                         <tr>
-                            <td class="footer">
-                                <p>
+                            <td class="footer" style="text-align: center">
+                                <p style="text-align: left;">
                                     Por favor, não responda a este e-mail,
                                     pois é uma mensagem automática e não é possível dar continuidade
                                     ao seu atendimento por este canal.
@@ -172,8 +172,10 @@ def recovery_password(user_email, new_password, style, enter_link, img_isi_er_ci
                                     Se tiver alguma dúvida, acesse o menu <a href="{contact_link}">Contato</a> diretamente na Plataforma.
                                 </p>
                                 <footer>
-                                    <img src="cid:{img_state_cid}" width="140px" alt="Logotipo do Governo do Rio Grande do Norte e Secretaria de Estado do Desenvolvimento Econômico - SEDEC">
-                                    <img src="cid:{img_isi_er_cid}" width="180px" alt="Logotipo do SENAI ISI-ER | Instituto de Inovação em Energias Renováveis">
+                                    <img src="cid:{img_state_cid}" width="140px"
+                                    alt="Logotipo do Governo do Rio Grande do Norte e da Secretaria de Estado do Desenvolvimento Econômico (SEDEC)" style="margin: 0 10px;">
+                                    <img src="cid:{img_isi_er_cid}" width="180px"
+                                    alt="Logotipo do Instituto SENAI de Inovação em Energias Renováveis (ISI-ER)" style="margin: 0 10px;">
                                 </footer>
                             </td>
                         </tr>
