@@ -379,7 +379,7 @@ async def get_users_list(
     return await controller.get_all_users()
 
 
-@app.get("/user/",
+@app.get("/user",
           response_model=models.User,
           response_model_exclude={"password", "updated_at", "deleted_at"},
           status_code=status.HTTP_200_OK)
