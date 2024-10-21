@@ -4,12 +4,17 @@ from contextlib import asynccontextmanager
 from typing import Annotated, List
 from uuid import UUID
 
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
+import base64
+
 import sentry_sdk
 from dotenv import load_dotenv, find_dotenv
 from fastapi import Body, Depends, FastAPI, status, Response, UploadFile
 from fastapi.exceptions import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import EmailStr
+import json
 
 from controllers.auth_controller import AuthController
 from controllers.feedback_controller import FeedbackController
@@ -49,12 +54,31 @@ async def lifespan(app: FastAPI):
     yield
 
 
+async def get_encryption_key():
+    key_hex = os.getenv("ENCRYPTION_KEY")
+    if key_hex is None:
+        raise ValueError("ENCRYPTION_KEY não está definida no ambiente.")
+    return bytes.fromhex(key_hex)
+
+
+async def encrypt_data(data: dict) -> str:
+    iv = os.urandom(16)
+    cipher = Cipher(algorithms.AES(await get_encryption_key()), modes.CBC(iv), backend=default_backend())
+    encryptor = cipher.encryptor()
+    json_data = json.dumps(data).encode()
+
+    while len(json_data) % 16 != 0:
+        json_data += b'\x00'
+    encrypted = encryptor.update(json_data) + encryptor.finalize()
+    return base64.b64encode(iv + encrypted).decode('utf-8')
+
+
 app = FastAPI(lifespan=lifespan)
 
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8000", "https://plataforma-energias-rn-production.up.railway.app"],
+    allow_origins=["http://localhost:8000", "http://127.0.0.1:8000", "https://plataforma-energias-rn-production.up.railway.app"],
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
@@ -148,7 +172,7 @@ async def post_process_geo_processing(
     if not has_permission:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
-    return await controller.process_geo_process(feature, raster_name, user.id.hex)
+    return await encrypt_data(await controller.process_geo_process(feature, raster_name, user.id.hex))
 
 
 @app.get("/process/raster/{raster_name}")
@@ -162,7 +186,7 @@ async def post_process_raster(
     if not has_permission:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
-    return await controller.process_raster(raster_name, user.id.hex)
+    return await encrypt_data(await controller.process_raster(raster_name, user.id.hex))
 
 
 @app.post("/process/dash-data/{energy_type}")
@@ -177,7 +201,7 @@ async def get_dash_data(
     if not has_permission:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
-    return await controller.dash_data(feature, energy_type)
+    return await encrypt_data(await controller.dash_data(feature, energy_type))
 
 
 @app.get("/sentry-debug")
