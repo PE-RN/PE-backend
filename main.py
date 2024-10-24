@@ -4,9 +4,10 @@ from contextlib import asynccontextmanager
 from typing import Annotated, List
 from uuid import UUID
 
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.backends import default_backend
 import base64
+from Crypto.Cipher import AES
+from Crypto.Random import get_random_bytes
+from Crypto.Util.Padding import pad, unpad
 
 import sentry_sdk
 from dotenv import load_dotenv, find_dotenv
@@ -62,16 +63,23 @@ async def get_encryption_key():
 
 
 async def encrypt_data(data: dict) -> str:
-    iv = os.urandom(16)
-    cipher = Cipher(algorithms.AES(await get_encryption_key()), modes.CBC(iv), backend=default_backend())
-    encryptor = cipher.encryptor()
-    json_data = json.dumps(data).encode()
+    plaintext = json.dumps(data)
 
-    while len(json_data) % 16 != 0:
-        json_data += b'\x00'
-    encrypted = encryptor.update(json_data) + encryptor.finalize()
-    return base64.b64encode(iv + encrypted).decode('utf-8')
+    iv = get_random_bytes(16)
+    cipher = AES.new(await get_encryption_key(), AES.MODE_CBC, iv)
 
+    ciphertext = cipher.encrypt(pad(plaintext.encode('utf-8'), AES.block_size))
+    return base64.b64encode(iv + ciphertext).decode('utf-8')
+
+async def decrypt_data(encrypted_data: str) -> dict:
+    # Decodifica os dados do formato Base64
+    iv = encrypted_data[:16]
+    ciphertext = encrypted_data[16:]
+
+    cipher = AES.new(await get_encryption_key(), AES.MODE_CBC, iv)
+    plaintext = unpad(cipher.decrypt(ciphertext), AES.block_size)
+
+    return json.loads(plaintext.decode('utf-8'))
 
 app = FastAPI(lifespan=lifespan)
 
