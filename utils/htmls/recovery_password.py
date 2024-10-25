@@ -2,104 +2,103 @@
 
 def style():
     return """
-                <style>
-                    /* Estilos globais */
-                    body {
-                        font-family: Arial, sans-serif;
-                        font-size: 14px;
-                        line-height: 1.6;
-                        color: #333;
-                    }
+        <style>
+            /* Estilos globais */
+            body {
+                font-family: Arial, sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+                color: #333;
+            }
 
-                    .container {
-                        width: 720px;
-                        height: 1200px;
-                        border: 1px solid #ddd;
-                    }
+            .container {
+                width: 720px;
+                height: 1200px;
+                border: 1px solid #ddd;
+            }
 
-                    .nav {
-                        color: #F4F4F4;
-                        background-color: #396581;
-                        justify-content: space-between;
-                        align-items: center;
-                        padding: 40px 80px 20px 80px;
-                    }
+            .nav {
+                color: #F4F4F4;
+                background-color: #396581;
+                justify-content: space-between;
+                align-items: center;
+                padding: 40px 80px 20px 80px;
+            }
 
-                    .nav p {
-                        font-size: 36px;
-                        line-height: 42px;
-                        margin-bottom: 20px;
-                    }
+            .nav p {
+                font-size: 36px;
+                line-height: 42px;
+                margin-bottom: 20px;
+            }
 
-                    .logo {
-                        font-size: 80px;
-                    }
+            .content {
+                padding: 40px 80px;
+                color: black;
+            }
 
-                    .content {
-                        padding: 40px 80px;
-                        color: black;
-                    }
+            .content p {
+                align-items: justify;
+                font-size: 20px;
+                line-height: 24px;
+            }
 
-                    .content p {
-                        align-items: justify;
-                        font-size: 20px;
-                        line-height: 24px;
-                    }
+            .pass {
+                display: inline-block;
+                text-align: center;
+                width: 100%;
+                font-size: 32px;
+                line-height: 40px;
+                color: #396581;
+            }
 
-                    .pass {
-                        display: inline-block;
-                        text-align: center;
-                        width: 100%;
-                        font-size: 32px;
-                        line-height: 40px;
-                        color: #396581;
-                    }
+            .btn {
+                display: flex;
+                justify-content: center;
+            }
 
-                    .btn {
-                        display: flex;
-                        justify-content: center;
-                    }
+            .btn a{
+                display: block;
+                width: 240px;
+                height: 40px;
+                text-align: center;
+                text-decoration: none;
+                background-color: #396581;
+                color: #F4F4F4;
+                border-radius: 8px;
+                font-size: 20px;
+                line-height: 40px;
+                cursor: pointer;
+                margin: 0 auto;
+            }
 
-                    .btn a{
-                        display: block;
-                        width: 240px;
-                        height: 40px;
-                        text-align: center;
-                        text-decoration: none;
-                        background-color: #396581;
-                        color: #F4F4F4;
-                        border-radius: 8px;
-                        font-size: 20px;
-                        line-height: 40px;
-                        cursor: pointer;
-                        margin: 0 auto;
-                    }
+            .pass {
+                display: inline-block;
+                text-align: center;
+                width: 100%;
+                font-size: 32px;
+                line-height: 40px;
+                color: #396581;
+            }
 
-                    .pass {
-                        display: inline-block;
-                        text-align: center;
-                        width: 100%;
-                        font-size: 32px;
-                        line-height: 40px;
-                        color: #396581;
-                    }
+            .footer {
+                background-color: #f0f0f0;
+                padding: 20px 80px;
+            }
 
-                    .footer {
-                        background-color: #f0f0f0;
-                        padding: 40px 80px;
-                    }
+            .footer p {
+                font-size: 12px;
+                line-height: 24px;
+                color: #666;
+            }
 
-                    .footer p {
-                        font-size: 20px;
-                        line-height: 24px;
-                        color: #666;
-                    }
-
-                    .footer footer{
-                        padding-top: 40px;
-                        text-align: center;
-                    }
-            </style>
+            .footer footer{
+                padding-top: 40px;
+                display: flex;
+                justify-content: center;
+                align-items: flex-end;
+                gap: 80px;
+            }
+    </style>
         """
 
 
@@ -107,9 +106,10 @@ def recovery_password(user_email, new_password, style, enter_link, img_isi_er_ci
 
     return f"""
     <!DOCTYPE html>
-    <html>
+    <html lang="pt-BR">
     <head>
         <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Redefinição de senha</title>
     {style}
     </head>
@@ -125,9 +125,9 @@ def recovery_password(user_email, new_password, style, enter_link, img_isi_er_ci
                                     <div class="logo">
                                         <img src="cid:{img_logo_cid}" alt="#">
                                     </div>
-                                    <p>Recuperação de senha</p>
                                 </div>
                                 <div class="content">
+                                    <h1>Recuperação de senha</h1>
                                     <p>
                                         Olá, {user_email},
                                         <br>
@@ -162,8 +162,8 @@ def recovery_password(user_email, new_password, style, enter_link, img_isi_er_ci
                         </tr>
                         <!-- Rodapé do email -->
                         <tr>
-                            <td class="footer">
-                                <p>
+                            <td class="footer" style="text-align: center">
+                                <p style="text-align: left;">
                                     Por favor, não responda a este e-mail,
                                     pois é uma mensagem automática e não é possível dar continuidade
                                     ao seu atendimento por este canal.
@@ -172,8 +172,10 @@ def recovery_password(user_email, new_password, style, enter_link, img_isi_er_ci
                                     Se tiver alguma dúvida, acesse o menu <a href="{contact_link}">Contato</a> diretamente na Plataforma.
                                 </p>
                                 <footer>
-                                    <img src="cid:{img_state_cid}" alt="#" style="margin-right: 120px;">
-                                    <img src="cid:{img_isi_er_cid}" alt="#" style="margin-left: 120px;">
+                                    <img src="cid:{img_state_cid}" width="140px"
+                                    alt="Logotipo do Governo do Rio Grande do Norte e da Secretaria de Estado do Desenvolvimento Econômico (SEDEC)" style="margin: 0 10px;">
+                                    <img src="cid:{img_isi_er_cid}" width="180px"
+                                    alt="Logotipo do Instituto SENAI de Inovação em Energias Renováveis (ISI-ER)" style="margin: 0 10px;">
                                 </footer>
                             </td>
                         </tr>

@@ -662,7 +662,7 @@ async def test_create_recovery_email_message(auth_repository):
     email_response = auth_controller._create_recovery_email_message(new_password, to_email)
     expected = EmailMessage.with_default_logo_images(
         to_email='rodolfobez15@gmail.com',
-        subject="Recuperação de senha Plataforma Atlas",
+        subject="Recuperação de senha Plataforma de Energias do RN",
         html_content=content)
 
     # Assert

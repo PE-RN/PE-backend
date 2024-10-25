@@ -1,3 +1,4 @@
+from sqlalchemy.orm import joinedload
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 from schemas.user import UserCreate
@@ -57,7 +58,7 @@ class UserRepository:
         await self.db.commit()
         return await self.db.refresh(db_log_email)
 
-    async def update_user(self, user: models.User, user_update: dict):
+    async def update_user_self(self, user: models.User, user_update: dict):
 
         for key, value in user_update.items():
             if key in ('id', 'created_at', 'group'):
@@ -73,3 +74,78 @@ class UserRepository:
         await self.db.refresh(user)
 
         return user
+
+    async def get_all_users(self):
+
+        statment = select(models.User)
+        users = await self.db.exec(statment)
+        return users.fetchall()
+
+    async def get_user_by_id(self, id: str):
+
+        statment = select(models.User).filter_by(id=id).fetch(1)
+
+        users = await self.db.exec(statment)
+        return users.first()
+
+    async def update_user(self, id: str, user_update: dict):
+
+        user = await self.get_user_by_id(id)
+
+        for key, value in user_update.items():
+            if key in ('id', 'created_at', 'group'):
+                continue
+
+            if value is None:
+                continue
+
+            setattr(user, key, value)
+
+        user.updated_at = datetime.datetime.now()
+        await self.db.commit()
+        await self.db.refresh(user)
+
+        return user
+
+    async def create_permission(self, permission: dict):
+
+        new_permission = models.Permission(
+            name=permission['name'],
+            description=permission['description']
+        )
+
+        self.db.add(new_permission)
+        await self.db.commit()
+        await self.db.refresh(new_permission)
+        return new_permission
+
+    async def create_group(self, group: dict):
+
+        new_group = models.Group(
+            name=group['name'],
+            description=group['description']
+        )
+
+        self.db.add(new_group)
+        await self.db.commit()
+        await self.db.refresh(new_group)
+        return new_group
+
+    async def get_group(self, group_id: str):
+
+        statment = select(models.Group).options(joinedload(models.Group.permissions)).filter_by(id=group_id)
+        group = await self.db.exec(statment)
+        return group.first()
+
+    async def get_permissions_by_names(self, permissions_names: list):
+
+        statment = select(models.Permission).where(models.Permission.name.in_(permissions_names))
+        users = await self.db.exec(statment)
+        return users.fetchall()
+
+    async def update_permissions_to_group(self, group: models.Group):
+
+        await self.db.commit()
+        await self.db.refresh(group)
+
+        return group

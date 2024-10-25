@@ -1,14 +1,21 @@
 import os
+import tempfile
 from contextlib import asynccontextmanager
-from typing import Annotated
+from typing import Annotated, List
 from uuid import UUID
+
+import base64
+from Crypto.Cipher import AES
+from Crypto.Random import get_random_bytes
+from Crypto.Util.Padding import pad, unpad
 
 import sentry_sdk
 from dotenv import load_dotenv, find_dotenv
-from fastapi import Body, Depends, FastAPI, status, Response
+from fastapi import Body, Depends, FastAPI, status, Response, UploadFile
 from fastapi.exceptions import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import EmailStr
+import json
 
 from controllers.auth_controller import AuthController
 from controllers.feedback_controller import FeedbackController
@@ -19,7 +26,7 @@ from controllers.media_controller import MediaController
 from schemas.feature import Feature
 from schemas.feedback import FeedbackCreate
 from schemas.token import Token
-from schemas.user import UserCreate
+from schemas.user import UserCreate, UserUpdate
 from schemas.media import CreatePdf, CreateVideo
 from sql_app import models
 from sql_app.database import init_db
@@ -48,12 +55,38 @@ async def lifespan(app: FastAPI):
     yield
 
 
+async def get_encryption_key():
+    key_hex = os.getenv("ENCRYPTION_KEY")
+    if key_hex is None:
+        raise ValueError("ENCRYPTION_KEY não está definida no ambiente.")
+    return bytes.fromhex(key_hex)
+
+
+async def encrypt_data(data: dict) -> str:
+    plaintext = json.dumps(data)
+
+    iv = get_random_bytes(16)
+    cipher = AES.new(await get_encryption_key(), AES.MODE_CBC, iv)
+
+    ciphertext = cipher.encrypt(pad(plaintext.encode('utf-8'), AES.block_size))
+    return base64.b64encode(iv + ciphertext).decode('utf-8')
+
+async def decrypt_data(encrypted_data: str) -> dict:
+    # Decodifica os dados do formato Base64
+    iv = encrypted_data[:16]
+    ciphertext = encrypted_data[16:]
+
+    cipher = AES.new(await get_encryption_key(), AES.MODE_CBC, iv)
+    plaintext = unpad(cipher.decrypt(ciphertext), AES.block_size)
+
+    return json.loads(plaintext.decode('utf-8'))
+
 app = FastAPI(lifespan=lifespan)
 
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8000", "https://plataforma-energias-rn-production.up.railway.app"],
+    allow_origins=["http://localhost:8000", "http://127.0.0.1:8000", "https://plataforma-energias-rn-production.up.railway.app"],
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
@@ -105,7 +138,7 @@ async def post_users(
           response_model_exclude={"password", "created_at", "updated_at", "deleted_at"},
           status_code=status.HTTP_200_OK)
 async def update_users(
-    user_update: dict,
+    user_update: UserUpdate,
     user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
     controller: Annotated[UserController, Depends(UserController.inject_controller)],
     has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("update_user"))]
@@ -114,7 +147,7 @@ async def update_users(
     if not has_permission:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
-    return await controller.update_user(user, user_update)
+    return await controller.update_user(user_update, user=user)
 
 
 @app.get("/recovery-password/{user_email}", status_code=status.HTTP_200_OK)
@@ -147,7 +180,7 @@ async def post_process_geo_processing(
     if not has_permission:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
-    return await controller.process_geo_process(feature, raster_name, user.id.hex)
+    return await encrypt_data(await controller.process_geo_process(feature, raster_name, user.id.hex))
 
 
 @app.get("/process/raster/{raster_name}")
@@ -161,7 +194,7 @@ async def post_process_raster(
     if not has_permission:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
-    return await controller.process_raster(raster_name, user.id.hex)
+    return await encrypt_data(await controller.process_raster(raster_name, user.id.hex))
 
 
 @app.post("/process/dash-data/{energy_type}")
@@ -176,7 +209,7 @@ async def get_dash_data(
     if not has_permission:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
-    return await controller.dash_data(feature, energy_type)
+    return await encrypt_data(await controller.dash_data(feature, energy_type))
 
 
 @app.get("/sentry-debug")
@@ -340,3 +373,156 @@ async def post_contact(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
     return await controller.create_feedback(contact)
+
+
+@app.put("/geofiles/upload/{table_name}", status_code=status.HTTP_200_OK)
+async def upload_geofile(
+    table_name: str,
+    file: UploadFile,
+    controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)],
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("post_geofile"))]
+):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    extension = os.path.splitext(file.filename)[1]
+    fd, file_path = tempfile.mkstemp(prefix='parser_', suffix=extension)
+
+    if extension not in ('.tif', '.tiff'):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Extensão invalida.")
+
+    return await controller.upload_raster(fd, file, file_path, table_name, 4674)
+
+
+@app.get("/users",
+          response_model=List[models.UserListResponse],
+          status_code=status.HTTP_200_OK)
+async def get_users_list(
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[UserController, Depends(UserController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("get_user_list"))]
+):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    return await controller.get_all_users()
+
+
+@app.get("/user",
+          response_model=models.User,
+          response_model_exclude={"password", "updated_at", "deleted_at"},
+          status_code=status.HTTP_200_OK)
+async def get_user(
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[UserController, Depends(UserController.inject_controller)],
+):
+
+    return user
+
+
+@app.get("/user/{id}",
+          response_model=models.User,
+          response_model_exclude={"password", "updated_at", "deleted_at"},
+          status_code=status.HTTP_200_OK)
+async def get_user_by_id(
+    id: str,
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[UserController, Depends(UserController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("get_user"))],
+):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    return await controller.get_user_by_id(id)
+
+
+@app.put("/user/{id}",
+          response_model=models.User,
+          response_model_exclude={"password", "created_at", "updated_at", "deleted_at"},
+          status_code=status.HTTP_200_OK)
+async def update_user(
+    id: str,
+    user_update: dict,
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[UserController, Depends(UserController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("update_other_user"))]
+):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    return await controller.update_user(user_update, id=id)
+
+
+@app.post("/permission",
+          response_model=models.Permission,
+          response_model_exclude={"created_at", "updated_at", "deleted_at"},
+          status_code=status.HTTP_200_OK)
+async def create_permission(
+    permission: dict,
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[UserController, Depends(UserController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("create_permission"))]
+):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    return await controller.create_permission(permission)
+
+
+@app.post("/group",
+          response_model=models.Group,
+          response_model_exclude={"created_at", "updated_at", "deleted_at"},
+          status_code=status.HTTP_200_OK)
+async def create_group(
+    group: dict,
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[UserController, Depends(UserController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("create_group"))]
+):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    return await controller.create_group(group)
+
+
+@app.put("/group/{group_id}/add",
+          response_model=models.Group,
+          response_model_exclude={"created_at", "updated_at", "deleted_at"},
+          status_code=status.HTTP_200_OK)
+async def add_permissions_to_group(
+    group_id: str,
+    permissions: dict,
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[UserController, Depends(UserController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("edit_group"))]
+):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    return await controller.add_permissions_to_group(group_id, permissions['permissions'])
+
+
+@app.put("/group/{group_id}/remove",
+          response_model=models.Group,
+          response_model_exclude={"created_at", "updated_at", "deleted_at"},
+          status_code=status.HTTP_200_OK)
+async def remove_permissions_to_group(
+    group_id: str,
+    permissions: dict,
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[UserController, Depends(UserController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("edit_group"))]
+):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    return await controller.remove_permissions_to_group(group_id, permissions['permissions'])

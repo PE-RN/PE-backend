@@ -6,8 +6,8 @@ from sqlmodel import Column, Field, SQLModel, Relationship
 
 
 class GroupPermissionLink(SQLModel, table=True):
-    group_id: int | None = Field(default=None, foreign_key="Groups.id", primary_key=True)
-    permission_id: int | None = Field(default=None, foreign_key="permissions.id", primary_key=True)
+    group_id: UUID | None = Field(default=None, foreign_key="Groups.id", primary_key=True)
+    permission_id: UUID | None = Field(default=None, foreign_key="permissions.id", primary_key=True)
 
 
 class Group(SQLModel, table=True):
@@ -107,6 +107,21 @@ class User(SQLModel, table=True):
     institution: str
     age: str
     user: str
+
+
+class UserListResponse(SQLModel, table=False):
+
+    """
+    This class represents a list of users in database
+    """
+
+    id: UUID = Field(
+        sa_column=Column(pg.UUID, primary_key=True, unique=True, default=uuid4)
+    )
+    user: str
+
+    class Config:
+        from_attributes = True
 
 
 class AnonymousUser(SQLModel, table=True):

@@ -43,6 +43,7 @@ passlib==1.7.4
 pluggy==1.5.0
 psycopg2-binary==2.9.9
 pyasn1==0.6.0
+pycryptodome==3.21.0
 pycodestyle==2.11.1
 pycparser==2.22
 pydantic==2.7.3
