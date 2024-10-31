@@ -12,9 +12,10 @@ from Crypto.Util.Padding import pad, unpad
 import sentry_sdk
 from dotenv import load_dotenv, find_dotenv
 from fastapi import Body, Depends, FastAPI, status, Response, UploadFile
-from fastapi.exceptions import HTTPException
+from fastapi import HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import EmailStr
+from typing import Union
 import json
 
 from controllers.auth_controller import AuthController
@@ -24,6 +25,7 @@ from controllers.process_controller import ProcessController
 from controllers.user_controller import UserController
 from controllers.media_controller import MediaController
 from schemas.feature import Feature
+from schemas.featureCollection import FeatureCollection
 from schemas.feedback import FeedbackCreate
 from schemas.token import Token
 from schemas.user import UserCreate, UserUpdate
@@ -91,6 +93,9 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
+
+GeoJSONInput = Union[Feature, FeatureCollection]
 
 
 @app.post("/token")
@@ -199,17 +204,26 @@ async def post_process_raster(
 
 @app.post("/process/dash-data/{energy_type}")
 async def get_dash_data(
-    feature: Feature,
+    feature: GeoJSONInput,  # Accept either Feature or FeatureCollection
     energy_type: str,
     user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
     controller: Annotated[ProcessController, Depends(ProcessController.inject_controller)],
     has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("view_dash_data"))]
 ):
-
     if not has_permission:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
-    return await encrypt_data(await controller.dash_data(feature, energy_type))
+    # Check if the input is a FeatureCollection or a single Feature
+    if isinstance(feature, FeatureCollection):
+        # Process each feature in the collection
+        results = []
+        for single_feature in feature.features:
+            result = await controller.dash_data(single_feature, energy_type)
+            results.append(await encrypt_data(result))
+        return results  # Return a list of encrypted results for each feature
+    else:
+        # Process a single feature
+        return await encrypt_data(await controller.dash_data(feature, energy_type))
 
 
 @app.get("/sentry-debug")
