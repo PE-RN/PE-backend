@@ -1,4 +1,4 @@
-from shapely.geometry import shape, mapping, LineString, Point, MultiLineString, MultiPoint, MultiPolygon, MultiLineString
+from shapely.geometry import shape, mapping, LineString, Polygon, MultiLineString, MultiPolygon, MultiLineString
 from shapely.ops import unary_union, transform
 from pyproj import CRS, Transformer
 import numpy as np
@@ -11,6 +11,7 @@ async def calculate_mean_of_vectors(vectors):
 
     array = np.array(vectors)
     return np.round(np.mean(array, axis=0), 2)
+
 
 async def area_in_km2(geom):
     # Define the source and target coordinate reference systems
@@ -42,26 +43,31 @@ async def mean_stats(geojson_loaded_from_db, geojson_sent_by_user, energy_type):
         user_geometries = [shape(geojson_sent_by_user.geometry.dict())]
         properties_list = [geojson_sent_by_user.properties.dict()]
 
+    flattened_line_geometries = []
+    for geom in user_geometries:
+        if isinstance(geom, LineString):
+            flattened_line_geometries.append(geom)
+        elif isinstance(geom, MultiLineString):
+            # Unpack each LineString from the MultiLineString and add to the list
+            flattened_line_geometries.extend(geom.geoms)
+
     # Combine geometries and determine whether they are lines or polygons
-    if all(geom.geom_type == 'Polygon' for geom in user_geometries):
+    if isinstance(user_geometries[0], Polygon) or isinstance(user_geometries[0], MultiPolygon):
         user_geometry = unary_union(user_geometries)  # Union of all polygons
         user_statistic = await area_in_km2(user_geometry)  # Calculate area
         stat_label = 'area'
-    elif all(geom.geom_type == 'LineString' for geom in user_geometries):
+    elif isinstance(user_geometries[0], LineString):
         user_geometry = MultiLineString(user_geometries)  # Combine all lines into MultiLineString
-        user_statistic = sum(line.length * 111.11 for line in user_geometries)  # Total length in km
+        user_statistic = user_geometry.length * 111.111  # Total length in km
         stat_label = 'length'
     else:
-        # Handle mixed cases (combine polygons and lines if necessary)
-        polygon_geometries = [geom for geom in user_geometries if geom.geom_type == 'Polygon']
-        line_geometries = [geom for geom in user_geometries if geom.geom_type == 'LineString']
-        user_geometry = unary_union(polygon_geometries) if polygon_geometries else None
-        user_statistic = sum(line.length * 111.11 for line in line_geometries)  # Total length for lines
-        stat_label = 'area'  # Indicates a combined area and length calculation
+        user_geometry = MultiLineString(flattened_line_geometries)
+        user_statistic = sum(line.length * 111.111 for line in flattened_line_geometries)  # Total length in km
+        stat_label = 'length'
 
     # Buffer configuration based on energy type
     is_wind = energy_type.startswith('wind')
-    buffer_distance = 1.5 / 111.11 if is_wind else 0.5 / 111.11
+    buffer_distance = 1.5 / 111.111 if is_wind else 0.5 / 111.111
     buffered_geom = user_geometry.buffer(buffer_distance, join_style='mitre') if user_geometry else None
 
     # Clip database geometries using buffered user geometry and calculate means
@@ -80,23 +86,40 @@ async def mean_stats(geojson_loaded_from_db, geojson_sent_by_user, energy_type):
 
     means = {}
     c_min, c_max, k_min, k_max = None, None, None, None
+    # Precompute c and k min/max values if they exist in properties
+    c_values = [feature['properties']['c'] for feature in clipped_features if 'c' in feature['properties']]
+    k_values = [feature['properties']['k'] for feature in clipped_features if 'k' in feature['properties']]
+
+    if c_values:
+        c_min = np.min(c_values)
+        c_max = np.max(c_values)
+        k_min_pos = c_values.index(c_min)
+        k_max_pos = c_values.index(c_max)
+
+        # Check if k_values are available and if k_min_pos and k_max_pos are within bounds
+        if k_values and k_min_pos < len(k_values) and k_max_pos < len(k_values):
+            k_list = np.array(k_values)
+            k_min = k_list[k_min_pos].item()
+            k_max = k_list[k_max_pos].item()
+        else:
+            k_min = None
+            k_max = None
+    else:
+        c_min = None
+        c_max = None
+        k_min = None
+        k_max = None
+
+    # Now loop over all properties and calculate mean values for other properties
     for prop in all_properties:
         vectors = [feature['properties'][prop] for feature in clipped_features if prop in feature['properties']]
         if vectors:
-            if prop == 'c':
-                c_min = np.min(vectors)
-                c_max = np.max(vectors)
-                k_min_pos = vectors.index(c_min)
-                k_max_pos = vectors.index(c_max)
-            elif prop == 'k':
-                k_list = np.array(vectors)
-                k_min = k_list[k_min_pos].item()
-                k_max = k_list[k_max_pos].item()
-            else:
+            if prop not in ['c', 'k']:  # 'c' and 'k' are already processed
                 mean_value = await calculate_mean_of_vectors(vectors)
                 means[prop] = mean_value.tolist()
         else:
             means[prop] = None
+
 
     # Prepare and return final response
     response_data = {
