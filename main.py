@@ -378,13 +378,8 @@ async def post_anonymous(
           response_model_exclude={"updated_at", "deleted_at"})
 async def post_contact(
     contact: FeedbackCreate,
-    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
-    controller: Annotated[FeedbackController, Depends(FeedbackController.inject_controller)],
-    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("create_contact"))]
+    controller: Annotated[FeedbackController, Depends(FeedbackController.inject_controller)]
 ):
-
-    if not has_permission:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
     return await controller.create_feedback(contact)
 
