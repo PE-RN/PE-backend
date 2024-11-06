@@ -17,16 +17,31 @@ class MediaController:
             repository=MediaRepository(db=db)
         )
 
-    async def create_pdf(self, pdf: CreatePdf):
-        return await self.repository.create_pdf(pdf)
+    async def create_file(self, pdf: CreatePdf):
+        return await self.repository.create_file(pdf)
 
-    async def get_pdf(self, id: str):
-        pdf = await self.repository.get_pdf_by_id(id)
+    async def get_file(self, id: str):
+        pdf = await self.repository.get_file_by_id(id)
         if not pdf:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Não encontrado!")
+        return pdf
 
-    async def list_pdf(self):
-        return await self.repository.list_pdf()
+    async def list_file(self):
+        return await self.repository.list_file()
+
+    async def update_file(self, file_update: dict, file_id: str):
+        file = await self.repository.get_file_by_id(file_id)
+        if not file:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Não encontrado!")
+
+        return await self.repository.update_file(file, file_update)
+
+    async def delete_file(self, file_id: str):
+        file = await self.repository.get_file_by_id(file_id)
+        if not file:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Não encontrado!")
+
+        return await self.repository.delete_file(file_id)
 
     async def create_video(self, video: CreateVideo):
         return await self.repository.create_video(video)

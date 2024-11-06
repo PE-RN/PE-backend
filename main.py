@@ -29,7 +29,7 @@ from schemas.featureCollection import FeatureCollection
 from schemas.feedback import FeedbackCreate
 from schemas.token import Token
 from schemas.user import UserCreate, UserUpdate
-from schemas.media import CreatePdf, CreateVideo
+from schemas.media import CreatePdf, CreateVideo, MediaUpdate
 from sql_app import models
 from sql_app.database import init_db
 from enums.ocupation_enum import OcupationEnum
@@ -261,10 +261,10 @@ async def get_geofiles_raster(
     return await controller.get_raster(table_name=table_name, x=x, y=y, z=z)
 
 
-@app.post("/media/pdf",
+@app.post("/file",
           response_model=models.PdfFile,
           response_model_exclude={"updated_at", "deleted_at"})
-async def post_pdf(
+async def post_file(
     pdf: CreatePdf,
     user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
     controller: Annotated[MediaController, Depends(MediaController.inject_controller)],
@@ -274,14 +274,14 @@ async def post_pdf(
     if not has_permission:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
-    return await controller.create_pdf(pdf)
+    return await controller.create_file(pdf)
 
 
-@app.get("/media/pdf/{pdf_id}",
+@app.get("/file/{id}",
          response_model=models.PdfFile,
          response_model_exclude={"updated_at", "deleted_at"})
-async def get_pdf(
-    pdf_id: str,
+async def get_file(
+    id: str,
     user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
     controller: Annotated[MediaController, Depends(MediaController.inject_controller)],
     has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("view_pdf"))]
@@ -290,11 +290,11 @@ async def get_pdf(
     if not has_permission:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
-    return await controller.get_pdf(pdf_id)
+    return await controller.get_file(id)
 
 
-@app.get("/media/pdf", response_model=list[models.PdfFile])
-async def list_pdf(
+@app.get("/file", response_model=list[models.PdfFile])
+async def list_file(
     user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
     controller: Annotated[MediaController, Depends(MediaController.inject_controller)],
     has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("list_pdf"))]
@@ -303,66 +303,39 @@ async def list_pdf(
     if not has_permission:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
-    return await controller.list_pdf()
+    return await controller.list_file()
 
 
-@app.post("/media/video",
-          response_model=models.Video,
-          response_model_exclude={"updated_at", "deleted_at"})
-async def post_video(
-    video: CreateVideo,
+@app.put("/file/{id}", 
+            response_model=models.PdfFile,
+            response_model_exclude={"created_at", "updated_at", "deleted_at"},
+            status_code=status.HTTP_200_OK)
+async def update_file(
+    id: str,
+    file_update: MediaUpdate,
     user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
     controller: Annotated[MediaController, Depends(MediaController.inject_controller)],
-    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("upload_video"))]
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("update_pdf"))]
 ):
 
     if not has_permission:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
-    return await controller.create_video(video)
+    return await controller.update_file(file_update, id)
 
 
-@app.get("/media/video/{video_id}",
-         response_model=models.Video,
-         response_model_exclude={"updated_at", "deleted_at"})
-async def get_video(
-    video_id: str,
+@app.delete("/file/{id}")
+async def delete_file(
+    id: str,
     user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
     controller: Annotated[MediaController, Depends(MediaController.inject_controller)],
-    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("view_video"))]
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("delete_pdf"))]
 ):
 
     if not has_permission:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
-    return await controller.get_video(video_id)
-
-
-@app.get("/media/video",
-         response_model=list[models.Video])
-async def list_video(
-    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
-    controller: Annotated[MediaController, Depends(MediaController.inject_controller)],
-    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("list_video"))]
-):
-
-    if not has_permission:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
-
-    return await controller.list_video()
-
-
-@app.get("/geofiles/download/{table_name}", status_code=status.HTTP_200_OK)
-async def get_file_download(
-    table_name: str,
-    controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)],
-    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("get_geofile"))]
-):
-
-    if not has_permission:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
-
-    return await controller.get_geofile_download(table_name)
+    return await controller.delete_file(id)
 
 
 @app.post("/anonymous", status_code=status.HTTP_201_CREATED)
