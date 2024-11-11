@@ -282,26 +282,16 @@ async def post_file(
          response_model_exclude={"updated_at", "deleted_at"})
 async def get_file(
     id: str,
-    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
-    controller: Annotated[MediaController, Depends(MediaController.inject_controller)],
-    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("view_pdf"))]
+    controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
 ):
-
-    if not has_permission:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
     return await controller.get_file(id)
 
 
 @app.get("/file", response_model=list[models.PdfFile])
 async def list_file(
-    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
-    controller: Annotated[MediaController, Depends(MediaController.inject_controller)],
-    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("list_pdf"))]
+    controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
 ):
-
-    if not has_permission:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
     return await controller.list_file()
 
