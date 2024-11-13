@@ -1,6 +1,6 @@
-# Tabelas que descrevem as unidades e descrição de cada variável do arquivo ".geojson" armazenado no BD.
+# Tabelas que descrevem as unidades e descrição de cada variável do arquivo ".geojson" armazenado no Banco de Dados
 
-## Wind
+## Eólico
 
 | Variável | Unidade | Descrição                                |
 |----------|---------|------------------------------------------|
@@ -24,9 +24,7 @@
 | mmp      | MWh      | Potência média mensal                    |
 | fc       | None     | Fator de capacidade com perdas           |
 
-
-
-###Exemplo geojson:
+### Exemplo geojson
 
 ```json
 {
@@ -44,18 +42,9 @@
           7.277, 7.318, 7.537, 7.96, 8.357, 8.61, 8.756, 8.822, 9.167, 9.735, 
           10.159, 10.295, 9.937, 9.438
         ],
-        "hmd": [
-          113.014, 118.314, 122.989, 127.659, 131.522, 135.207, 138.144, 135.044, 
-          127.367, 117.083, 103.374, 89.133, 78.28, 71.42, 68.487, 67.422, 67.774, 
-          71.813, 77.431, 82.507, 90.442, 97.229, 103.012, 107.506
-        ],
         "mms": [
           8.619, 7.733, 6.455, 6.861, 6.842, 7.645, 7.782, 9.045, 9.633, 9.836, 
           10.109, 9.073
-        ],
-        "mmd": [
-          89.072, 96.634, 91.802, 99.885, 102.445, 120.274, 137.625, 103.378, 
-          108.879, 97.038, 88.066, 85.818
         ],
         "dp": [
           0.091, 2.306, 25.046, 23.801, 33.95, 11.027, 3.288, 0.263, 0.034, 
@@ -77,3 +66,4 @@
     }
   ]
 }
+```
