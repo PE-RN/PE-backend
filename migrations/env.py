@@ -13,7 +13,7 @@ from sql_app.models import GroupPermissionLink, Group, Permission, TemporaryUser
 # access to the values within the .ini file in use.
 config = context.config
 
-DB_PATH = str(getenv('DATABASE_URL', "postgresql://postgres:postgres@localhost:5432/atlas"))
+DB_PATH = str(getenv('DATABASE_URL', "postgresql+psycopg2://postgres:postgres@postgresql:5432/atlas"))
 config.set_main_option('sqlalchemy.url', DB_PATH)
 
 # Interpret the config file for Python logging.
