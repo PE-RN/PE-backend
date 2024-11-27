@@ -19,4 +19,4 @@ RUN mamba install pip gdal rasterio -n atlas -c conda-forge --yes
 EXPOSE 5000
 RUN pip install -r requirements.txt
 
-CMD ["uvicorn", "main:app", "--reload", "--host", "0.0.0.0", "--port", "5000", "--workers", "4"]
+CMD ["uvicorn", "main:app", "--reload", "--host", "0.0.0.0", "--port", "5000", "--workers", "8"]
