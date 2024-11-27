@@ -88,7 +88,7 @@ app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8000", "http://127.0.0.1:8000", "https://plataforma-energias-rn-production.up.railway.app", "http://172.25.208.1:8000", "https://atlaseolicosolarn.com.br", "https://platenergiasrn.com.br"],
+    allow_origins=["http://localhost:8000", "http://127.0.0.1:8000", "https://plataforma-energias-rn-production.up.railway.app", "https://atlaseolicosolarn.com.br", "https://back.atlaseolicosolarn.com.br", "https://platenergiasrn.com.br"],
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
