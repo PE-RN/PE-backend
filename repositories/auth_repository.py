@@ -30,6 +30,12 @@ class AuthRepository:
         users = await self.db.exec(statment)
         return users.first()
 
+    async def get_temporary_user_by_email(self, email: str):
+
+        statment = select(models.TemporaryUser).filter_by(email=email).fetch(1)
+        users = await self.db.exec(statment)
+        return users.first()
+
     async def create_log_email(self, content: str, to: str, sender: str, subject: str, has_error: bool, error_message: str | None = None):
 
         log_email = models.LogsEmail(content=content, to=to, sender=sender, subject=subject, has_error=has_error, error_message=error_message)
