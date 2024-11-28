@@ -16,8 +16,7 @@ ENV PATH /opt/conda/envs/atlas/bin:$PATH
 
 # Use Mamba to install packages
 RUN mamba install pip gdal rasterio -n atlas -c conda-forge --yes
-EXPOSE 8080
+EXPOSE 5000
 RUN pip install -r requirements.txt
 
-# Environment variable
-ENV NAME PLEN
+CMD ["uvicorn", "main:app", "--reload", "--host", "0.0.0.0", "--port", "5000", "--workers", "8"]

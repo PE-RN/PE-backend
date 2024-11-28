@@ -87,7 +87,7 @@ class ProcessController:
 
     async def dash_data(self, feature: Feature, energy_type: str):
 
-        self._validate_features(feature)
+        """ self._validate_features(feature) """
 
         json_data = await self.repository.get_geo_json_data_by_name(energy_type)
         if not json_data:

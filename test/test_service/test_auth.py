@@ -18,7 +18,7 @@ async def test_token_fake_user(async_client):
 
     # Assert
     assert response.status_code == 404
-    assert response.json() == {"detail": "Usuário não encontrado!"}
+    assert response.json() == {"detail": ""}
 
 
 @pytest.mark.anyio

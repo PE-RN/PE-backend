@@ -1,7 +1,8 @@
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sql_app import models
 from schemas.media import CreatePdf, CreateVideo
-from sqlmodel import select
+from sqlmodel import select, delete
+import datetime
 
 
 class MediaRepository:
@@ -9,25 +10,47 @@ class MediaRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create_pdf(self, pdf_schema: CreatePdf):
+    async def create_file(self, file_schema: CreatePdf):
 
-        pdf = models.PdfFile(**pdf_schema.model_dump())
-        self.db.add(pdf)
+        file = models.PdfFile(**file_schema.model_dump())
+        self.db.add(file)
         await self.db.commit()
-        await self.db.refresh(pdf)
-        return pdf
+        await self.db.refresh(file)
+        return file
 
-    async def get_pdf_by_id(self, id: str):
+    async def get_file_by_id(self, id: str):
 
         statment = select(models.PdfFile).filter_by(id=id).fetch(1)
-        pdf = await self.db.exec(statment)
-        return pdf.first()
+        file = await self.db.exec(statment)
+        return file.first()
 
-    async def list_pdf(self):
+    async def list_file(self):
 
         statment = select(models.PdfFile)
-        pdfs = await self.db.exec(statment)
-        return pdfs.all()
+        files = await self.db.exec(statment)
+        return files.all()
+
+    async def update_file(self, file: models.PdfFile, file_update: dict):
+
+        for key, value in file_update.items():
+            if key in ('id', 'created_at', 'group'):
+                continue
+
+            if value is None:
+                continue
+
+            setattr(file, key, value)
+
+        file.updated_at = datetime.datetime.now()
+        await self.db.commit()
+        await self.db.refresh(file)
+        return file
+
+    async def delete_file(self, file_id: str):
+
+        statment = delete(models.PdfFile).where(models.PdfFile.id == file_id)
+        await self.db.exec(statment)
+        return await self.db.commit()
 
     async def create_video(self, video_schema: CreateVideo):
 
