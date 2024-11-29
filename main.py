@@ -13,6 +13,7 @@ import sentry_sdk
 from dotenv import load_dotenv, find_dotenv
 from fastapi import Body, Depends, FastAPI, status, Response, UploadFile
 from fastapi import HTTPException, status
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import EmailStr
 from typing import Union
@@ -105,7 +106,14 @@ async def login(
     controller: Annotated[AuthController, Depends(AuthController.inject_controller)]
 ) -> Token:
 
-    return await controller.get_token_user(email=email, password=password)
+    token = await controller.get_token_user(email=email, password=password)
+    if token == 'resend_email':
+        return JSONResponse(
+            content={"detail": 'Por favor clique no link do email de confirmação para realizar o login'},
+            status_code=status.HTTP_401_UNAUTHORIZED
+        )
+
+    return token
 
 
 @app.post('/refresh-token', response_model=Token)
