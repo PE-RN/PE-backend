@@ -105,11 +105,12 @@ class AuthController:
 
         return jwt.encode(to_enconde, getenv("SECRET_KEY"), algorithm=getenv("ALGORITHM"))
 
-    async def get_token_user(self, email: EmailStr, password: str) -> Token:
+    async def get_token_user(self, email: EmailStr, password: str):
 
         user = await self.authenticate_user(email, password)
         if not user:
             temporary_user = await self.repository.get_temporary_user_by_email(email)
+
             if temporary_user:
                 email_message = self._create_confirmation_account_email_message(
                     temporary_user.email,
@@ -121,7 +122,7 @@ class AuthController:
                     email_message=email_message,
                     temporary_user=temporary_user
                 )
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Por favor clique no link do email de confirmação para realizar o login")
+                return 'resend_email'
 
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado!")
 
