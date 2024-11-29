@@ -498,3 +498,11 @@ async def remove_permissions_to_group(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
     return await controller.remove_permissions_to_group(group_id, permissions['permissions'])
+
+
+@app.get("/dashboard/user", status_code=status.HTTP_200_OK)
+async def get_user_dashboard_data(
+    controller: Annotated[UserController, Depends(UserController.inject_controller)]
+):
+
+    return await controller.get_user_dashboard_data()

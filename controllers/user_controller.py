@@ -204,3 +204,7 @@ class UserController:
         await self.repository.update_permissions_to_group(group)
 
         return group
+
+    async def get_user_dashboard_data(self):
+
+        return await self.repository.get_user_dashboard_data()

@@ -1,9 +1,9 @@
+from datetime import datetime, timedelta
 from sqlalchemy.orm import joinedload
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select
+from sqlmodel import select, func, case
 from schemas.user import UserCreate
 from sql_app import models
-import datetime
 
 
 class UserRepository:
@@ -69,7 +69,7 @@ class UserRepository:
 
             setattr(user, key, value)
 
-        user.updated_at = datetime.datetime.now()
+        user.updated_at = datetime.now()
         await self.db.commit()
         await self.db.refresh(user)
 
@@ -101,7 +101,7 @@ class UserRepository:
 
             setattr(user, key, value)
 
-        user.updated_at = datetime.datetime.now()
+        user.updated_at = datetime.now()
         await self.db.commit()
         await self.db.refresh(user)
 
@@ -149,3 +149,23 @@ class UserRepository:
         await self.db.refresh(group)
 
         return group
+
+    async def get_user_dashboard_data(self):
+
+        now = datetime.now()
+        last_month = now - timedelta(days=30)
+        last_week = now - timedelta(days=7)
+
+        statement = select(
+            func.count(models.User.id).label("total_users"),
+            func.sum(case((models.User.created_at >= last_month, 1), else_=0)).label("users_last_month"),
+            func.sum(case((models.User.created_at >= last_week, 1), else_=0)).label("users_last_week")
+        )
+        result = await self.db.exec(statement)
+        row = result.first()
+
+        return {
+            "total_usuarios": row.total_users,
+            "usuarios_ultimo_mes": row.users_last_month,
+            "usuarios_ultima_semana": row.users_last_week
+        }
