@@ -20,6 +20,7 @@ from schemas.email import EmailMessage
 from services.email_service import EmailService
 from sql_app.database import get_db
 from sql_app.models import User
+from sql_app.models import TemporaryUser
 from asyncer import syncify
 from utils.html_generator import HtmlGenerator
 
@@ -108,6 +109,20 @@ class AuthController:
 
         user = await self.authenticate_user(email, password)
         if not user:
+            temporary_user = await self.repository.get_temporary_user_by_email(email)
+            if temporary_user:
+                email_message = self._create_confirmation_account_email_message(
+                    temporary_user.email,
+                    f"{getenv('HOST_URL')}confirm-email/{temporary_user.id}",
+                )
+
+                self.background_tasks.add_task(
+                    self._send_email_account_confirmation_wrapper,
+                    email_message=email_message,
+                    temporary_user=temporary_user
+                )
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Por favor clique no link do email de confirmação para realizar o login")
+
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado!")
 
         return Token(access_token=self.generate_access_token(email), refresh_token=self.generate_refresh_token(email))
@@ -259,6 +274,47 @@ class AuthController:
                 has_error=True,
                 error_message=str(e)
             )
+
+    def _create_confirmation_account_email_message(self, to_email, confirmation_link_url) -> EmailMessage:
+
+        link_url = self._replace_safety_url_for_sender_pattern(confirmation_link_url)
+
+        content = HtmlGenerator().confirmation_account(
+            img_logo_cid='logo',
+            img_isi_er_cid="isi",
+            img_state_cid="estado",
+            user_email=to_email,
+            contact_link=f"{getenv('FRONT_URL')}pages/contact/contact.html",
+            confirmation_email_link=link_url)
+
+        return EmailMessage.with_default_logo_images(html_content=content, subject="Confirmação de email Plataforma de Energias do RN", to_email=to_email)
+
+    def _replace_safety_url_for_sender_pattern(self, url: str) -> str:
+        return url.replace("&", "&amp;").replace("?", "&quest;")
+
+    def _send_email_account_confirmation_wrapper(self, email_message: EmailMessage, temporary_user: TemporaryUser):
+
+        try:
+            self.email_service.send_email_account_confirmation(email_message)
+            syncify(async_function=self.repository.create_log_email)(
+                subject=email_message.subject,
+                content=email_message.html_content,
+                to=email_message.to_email,
+                sender=getenv('EMAIL_SMTP'),
+                has_error=False,
+                error_message=None
+            )
+        except Exception as e:
+            capture_exception(e)
+            syncify(async_function=self.repository.create_log_email)(
+                subject=email_message.subject,
+                content=email_message.html_content,
+                to=email_message.to_email,
+                sender=getenv('EMAIL_SMTP'),
+                has_error=True,
+                error_message=str(e)
+            )
+
 
     @staticmethod
     def get_permission_dependency(permission_name: str) -> Callable[..., bool]:
