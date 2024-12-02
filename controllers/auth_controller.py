@@ -131,7 +131,10 @@ class AuthController:
     async def authenticate_user(self, email: EmailStr, password: str) -> User | None:
 
         user = await self.repository.get_user_by_email(email)
-        if user and self.verify_password_hash(password, user.password):
+        if user:
+            if not self.verify_password_hash(password, user.password):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Senha incorreta!")
+
             return user
 
         return None
