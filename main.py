@@ -11,8 +11,7 @@ from Crypto.Util.Padding import pad, unpad
 
 import sentry_sdk
 from dotenv import load_dotenv, find_dotenv
-from fastapi import Body, Depends, FastAPI, status, Response, UploadFile
-from fastapi import HTTPException, status
+from fastapi import Body, Depends, FastAPI, status, Response, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import EmailStr
@@ -30,7 +29,7 @@ from schemas.featureCollection import FeatureCollection
 from schemas.feedback import FeedbackCreate
 from schemas.token import Token
 from schemas.user import UserCreate, UserUpdate
-from schemas.media import CreatePdf, CreateVideo, MediaUpdate
+from schemas.media import CreatePdf, MediaUpdate
 from sql_app import models
 from sql_app.database import init_db
 from enums.ocupation_enum import OcupationEnum
@@ -74,8 +73,8 @@ async def encrypt_data(data: dict) -> str:
     ciphertext = cipher.encrypt(pad(plaintext.encode('utf-8'), AES.block_size))
     return base64.b64encode(iv + ciphertext).decode('utf-8')
 
+
 async def decrypt_data(encrypted_data: str) -> dict:
-    # Decodifica os dados do formato Base64
     iv = encrypted_data[:16]
     ciphertext = encrypted_data[16:]
 
@@ -229,9 +228,8 @@ async def get_dash_data(
             result = await controller.dash_data(single_feature, energy_type)
             results.append(await encrypt_data(result))
         return results  # Return a list of encrypted results for each feature
-    else:
-        # Process a single feature
-        return await encrypt_data(await controller.dash_data(feature, energy_type))
+
+    return await encrypt_data(await controller.dash_data(feature, energy_type))
 
 
 @app.get("/sentry-debug")
