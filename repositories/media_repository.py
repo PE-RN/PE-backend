@@ -23,6 +23,12 @@ class MediaRepository:
         statment = select(models.PdfFile).filter_by(id=id).fetch(1)
         file = await self.db.exec(statment)
         return file.first()
+    
+    async def list_files_by_category(self, category: str):
+
+        statment = select(models.PdfFile).filter_by(category=category)
+        file = await self.db.exec(statment)
+        return file.all()
 
     async def list_file(self):
 
