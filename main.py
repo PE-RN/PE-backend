@@ -295,6 +295,14 @@ async def get_file(
 
 
 @app.get("/file", response_model=list[models.PdfFile])
+async def list_file_by_category(
+    category: str,
+    controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
+):
+
+    return await controller.list_files_by_category(category)
+
+@app.get("/file", response_model=list[models.PdfFile])
 async def list_file(
     controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
 ):

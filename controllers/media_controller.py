@@ -26,6 +26,9 @@ class MediaController:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Não encontrado!")
         return pdf
 
+    async def list_files_by_category(self, category: str):
+        return await self.repository.list_files_by_category(category)
+    
     async def list_file(self):
         return await self.repository.list_file()
 
