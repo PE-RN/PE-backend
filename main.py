@@ -11,7 +11,7 @@ from Crypto.Util.Padding import pad, unpad
 
 import sentry_sdk
 from dotenv import load_dotenv, find_dotenv
-from fastapi import Body, Depends, FastAPI, status, Response, UploadFile, HTTPException
+from fastapi import Body, Depends, FastAPI, status, Response, UploadFile, HTTPException, Form, Body
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import EmailStr
@@ -29,7 +29,7 @@ from schemas.featureCollection import FeatureCollection
 from schemas.feedback import FeedbackCreate
 from schemas.token import Token
 from schemas.user import UserCreate, UserUpdate
-from schemas.media import CreatePdf, MediaUpdate
+from schemas.media import MediaCreate, MediaUpdate
 from sql_app import models
 from sql_app.database import init_db
 from enums.ocupation_enum import OcupationEnum
@@ -271,16 +271,22 @@ async def get_geofiles_raster(
           response_model=models.PdfFile,
           response_model_exclude={"updated_at", "deleted_at"})
 async def post_file(
-    pdf: CreatePdf,
     user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
     controller: Annotated[MediaController, Depends(MediaController.inject_controller)],
-    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("upload_pdf"))]
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("upload_pdf"))],
+    pdf: str = Form(...),
+    file: UploadFile | None = Form(None)
 ):
-
     if not has_permission:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
-    return await controller.create_file(pdf)
+    try:
+        data = json.loads(pdf)
+        media_data = MediaCreate(**data)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="JSON inválido")
+
+    return await controller.create_file(media_data, file)
 
 
 @app.get("/file/{id}",
@@ -296,10 +302,12 @@ async def get_file(
 
 @app.get("/file", response_model=list[models.PdfFile])
 async def list_file(
-    controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
+    controller: Annotated[MediaController, Depends(MediaController.inject_controller)],
+    category_name: str | None = None,
+    sub_category_name: str | None = None,
+    filter_map: bool = False
 ):
-
-    return await controller.list_file()
+    return await controller.list_file(category_name, filter_map, sub_category_name)
 
 
 @app.put("/file/{id}", 
