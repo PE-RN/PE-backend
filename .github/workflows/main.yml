@@ -1,0 +1,34 @@
+name: "Deploy back-atlas"
+on: 
+  push:
+    branches:
+      - main
+
+jobs:
+  build_deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Baixar código"
+        uses: actions/checkout@v4
+
+      - name: "copy file via ssh password"
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.HOST }}
+          username: root
+          password: ${{ secrets.PASSWORD }}
+          port: 22
+          source: .
+          target: ./atlas/back-end
+
+      - name: "executing remote ssh commands using password"
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOST }}
+          username: root
+          password: ${{ secrets.PASSWORD }}
+          port: 22
+          script: |
+            cd ./atlas
+            docker compose up --build -d
