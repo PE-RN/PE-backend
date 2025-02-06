@@ -182,6 +182,7 @@ class PdfFile(SQLModel, table=True):
     name: str
     path: str
     category: str
+    sub_category: str
 
 
 class Video(SQLModel, table=True):
@@ -201,6 +202,7 @@ class Video(SQLModel, table=True):
     name: str
     path: str
     category: str
+    sub_category: str
 
 
 class Feedback(SQLModel, table=True):

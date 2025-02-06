@@ -91,6 +91,7 @@ def upgrade() -> None:
     sa.Column('name', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('path', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('category', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+    sa.Column('sub_category', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('id')
     )
@@ -102,6 +103,7 @@ def upgrade() -> None:
     sa.Column('name', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('path', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('category', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+    sa.Column('sub_category', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('id')
     )
