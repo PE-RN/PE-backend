@@ -14,8 +14,10 @@ from dotenv import load_dotenv, find_dotenv
 from fastapi import Body, Depends, FastAPI, status, Response, UploadFile, HTTPException, Form, Body
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import EmailStr
 from typing import Union
+from pathlib import Path
 import json
 
 from controllers.auth_controller import AuthController
@@ -84,6 +86,10 @@ async def decrypt_data(encrypted_data: str) -> dict:
     return json.loads(plaintext.decode('utf-8'))
 
 app = FastAPI(lifespan=lifespan)
+
+private_directory = Path("assets/public")
+private_directory.mkdir(parents=True, exist_ok=True)
+app.mount("/assets/public", StaticFiles(directory="assets/public"), name="public")
 
 
 app.add_middleware(
@@ -274,14 +280,22 @@ async def post_file(
     user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
     controller: Annotated[MediaController, Depends(MediaController.inject_controller)],
     has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("upload_pdf"))],
-    pdf: str = Form(...),
+    name: str = Form(...),
+    path: str = Form(...),
+    category: str = Form(...),
+    sub_category: str = Form(...),
     file: UploadFile | None = Form(None)
 ):
     if not has_permission:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
     try:
-        data = json.loads(pdf)
+        data = {
+            "name": name,
+            "path": path,
+            "category": category,
+            "sub_category": sub_category
+        }
         media_data = MediaCreate(**data)
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="JSON inválido")
@@ -298,6 +312,7 @@ async def get_file(
 ):
 
     return await controller.get_file(id)
+
 
 @app.get("/file", response_model=list[models.PdfFile])
 async def list_file(
