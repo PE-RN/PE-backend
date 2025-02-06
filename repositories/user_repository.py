@@ -14,14 +14,14 @@ class UserRepository:
 
     async def get_temporary_user_by_email(self, email):
 
-        statment = select(models.TemporaryUser).filter_by(email=email).fetch(1)
-        temporary_users = await self.db.exec(statment)
+        statement = select(models.TemporaryUser).filter_by(email=email).fetch(1)
+        temporary_users = await self.db.exec(statement)
         return temporary_users.first()
 
     async def get_user_by_email(self, email):
 
-        statment = select(models.User).filter_by(email=email).fetch(1)
-        users = await self.db.exec(statment)
+        statement = select(models.User).filter_by(email=email).fetch(1)
+        users = await self.db.exec(statement)
         return users.first()
 
     async def create_temporary_user(self, user: UserCreate):
@@ -77,15 +77,15 @@ class UserRepository:
 
     async def get_all_users(self):
 
-        statment = select(models.User)
-        users = await self.db.exec(statment)
+        statement = select(models.User)
+        users = await self.db.exec(statement)
         return users.fetchall()
 
     async def get_user_by_id(self, id: str):
 
-        statment = select(models.User).filter_by(id=id).fetch(1)
+        statement = select(models.User).filter_by(id=id).fetch(1)
 
-        users = await self.db.exec(statment)
+        users = await self.db.exec(statement)
         return users.first()
 
     async def update_user(self, id: str, user_update: dict):
@@ -133,14 +133,14 @@ class UserRepository:
 
     async def get_group(self, group_id: str):
 
-        statment = select(models.Group).options(joinedload(models.Group.permissions)).filter_by(id=group_id)
-        group = await self.db.exec(statment)
+        statement = select(models.Group).options(joinedload(models.Group.permissions)).filter_by(id=group_id)
+        group = await self.db.exec(statement)
         return group.first()
 
     async def get_permissions_by_names(self, permissions_names: list):
 
-        statment = select(models.Permission).where(models.Permission.name.in_(permissions_names))
-        users = await self.db.exec(statment)
+        statement = select(models.Permission).where(models.Permission.name.in_(permissions_names))
+        users = await self.db.exec(statement)
         return users.fetchall()
 
     async def update_permissions_to_group(self, group: models.Group):

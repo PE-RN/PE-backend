@@ -26,14 +26,14 @@ class AuthRepository:
 
     async def get_user_by_email(self, email: str):
 
-        statment = select(models.User).filter_by(email=email).fetch(1)
-        users = await self.db.exec(statment)
+        statement = select(models.User).filter_by(email=email).fetch(1)
+        users = await self.db.exec(statement)
         return users.first()
 
     async def get_temporary_user_by_email(self, email: str):
 
-        statment = select(models.TemporaryUser).filter_by(email=email).fetch(1)
-        users = await self.db.exec(statment)
+        statement = select(models.TemporaryUser).filter_by(email=email).fetch(1)
+        users = await self.db.exec(statement)
         return users.first()
 
     async def create_log_email(self, content: str, to: str, sender: str, subject: str, has_error: bool, error_message: str | None = None):
@@ -45,8 +45,8 @@ class AuthRepository:
 
     async def get_temporary_user_by_id(self, temporary_user_id):
 
-        statment = select(models.TemporaryUser).filter_by(id=temporary_user_id).fetch(1)
-        users = await self.db.exec(statment)
+        statement = select(models.TemporaryUser).filter_by(id=temporary_user_id).fetch(1)
+        users = await self.db.exec(statement)
         return users.first()
 
     async def update_user(self, user: models.User):
@@ -66,8 +66,8 @@ class AuthRepository:
 
     async def get_anonymous_user_by_id(self, anonymous_user_id) -> models.AnonymousUser | None:
 
-        statment = select(models.AnonymousUser).filter_by(id=anonymous_user_id).fetch(1)
-        anonymous_users = await self.db.exec(statment)
+        statement = select(models.AnonymousUser).filter_by(id=anonymous_user_id).fetch(1)
+        anonymous_users = await self.db.exec(statement)
         return anonymous_users.first()
 
     async def check_permission(self, user: models.User, permission_name: str) -> bool:
