@@ -308,23 +308,32 @@ async def post_file(
          response_model_exclude={"updated_at", "deleted_at"})
 async def get_file(
     id: str,
-    controller: Annotated[MediaController, Depends(MediaController.inject_controller)]
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[MediaController, Depends(MediaController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("get_pdf"))]
 ):
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
     return await controller.get_file(id)
 
 
 @app.get("/file", response_model=list[models.PdfFile])
 async def list_file(
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
     controller: Annotated[MediaController, Depends(MediaController.inject_controller)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("get_pdf"))],
     category_name: str | None = None,
     sub_category_name: str | None = None,
     filter_map: bool = False
 ):
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
     return await controller.list_file(category_name, filter_map, sub_category_name)
 
 
-@app.put("/file/{id}", 
+@app.put("/file/{id}",
             response_model=models.PdfFile,
             response_model_exclude={"created_at", "updated_at", "deleted_at"},
             status_code=status.HTTP_200_OK)
