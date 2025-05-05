@@ -85,7 +85,7 @@ async def decrypt_data(encrypted_data: str) -> dict:
 
     return json.loads(plaintext.decode('utf-8'))
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 
 private_directory = Path("assets/public")
 private_directory.mkdir(parents=True, exist_ok=True)
