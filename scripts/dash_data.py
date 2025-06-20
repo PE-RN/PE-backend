@@ -5,6 +5,7 @@ import numpy as np
 import pyproj
 from shapely.ops import transform
 from functools import partial
+import math
 
 
 async def calculate_mean_of_vectors(vectors):
@@ -110,6 +111,21 @@ async def mean_stats(geojson_loaded_from_db, geojson_sent_by_user, energy_type):
         k_min = None
         k_max = None
 
+    # Weibull PDF function and arrays for wind energy
+    def weibull_pdf(x, c, k):
+        if x < 0 or c <= 0 or k <= 0:
+            return 0
+        return (k / c) * ((x / c) ** (k - 1)) * math.exp(-((x / c) ** k))
+
+    if is_wind and all(v is not None for v in [c_min, k_min, c_max, k_max]):
+        x_values = [round(i * 0.1, 2) for i in range(int(c_max * 20))]
+        y_values_min = [weibull_pdf(x, c_min, k_min) for x in x_values]
+        y_values_max = [weibull_pdf(x, c_max, k_max) for x in x_values]
+    else:
+        x_values = []
+        y_values_min = []
+        y_values_max = []
+
     # Now loop over all properties and calculate mean values for other properties
     for prop in all_properties:
         vectors = [feature['properties'][prop] for feature in clipped_features if prop in feature['properties']]
@@ -137,7 +153,10 @@ async def mean_stats(geojson_loaded_from_db, geojson_sent_by_user, energy_type):
             'C_max': c_max,
             'K_max': k_max,
             'C_min': c_min,
-            'K_min': k_min
+            'K_min': k_min,
+            'weibull_x': x_values,
+            'weibull_y_min': y_values_min,
+            'weibull_y_max': y_values_max
         })
-    print(response_data)
+
     return response_data
