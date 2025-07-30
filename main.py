@@ -94,7 +94,7 @@ app.mount("/assets/public", StaticFiles(directory="assets/public"), name="public
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:5173", "http://127.0.0.1:5173", "https://plataforma-energias-rn-production.up.railway.app", "https://atlaseolicosolarn.com.br", "https://back.atlaseolicosolarn.com.br", "https://platenergiasrn.com.br"],
+    allow_origins=["http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:5173", "http://127.0.0.1:5173", "https://back.plataformadeenergiasrn.com.br", "https://plataformadeenergiasrn.com.br"],
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
