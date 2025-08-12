@@ -11,4 +11,5 @@ class LayerCreate(BaseModel):
     path: str | None = None
     path_icon: str | None = None
     subtitle: str | None = None
+    activated: bool = False
     layer_group_id: str

@@ -576,6 +576,7 @@ async def create_layer(
     file_icon: Annotated[UploadFile, File(...)],
     subtitle: Annotated[str, Form(...)],
     layer_group_id: Annotated[Optional[str], Form(...)],
+    activated: Annotated[bool, Form(...)],
     user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
     has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("layer_admin"))]
 ):
@@ -587,6 +588,7 @@ async def create_layer(
             "name": name,
             "layer_group_id": layer_group_id,
             "subtitle": subtitle,
+            "activated": activated
         }
         media_data = LayerCreate(**data)
     except json.JSONDecodeError:

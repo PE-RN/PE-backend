@@ -61,7 +61,8 @@ class LayersRepository:
                 "name": layer.name,
                 "path": layer.path,
                 "path_icon": layer.path_icon,
-                "subtitle": layer.subtitle
+                "subtitle": layer.subtitle,
+                "activated": layer.activated
             })
 
         # Indexar grupos por grupo pai
