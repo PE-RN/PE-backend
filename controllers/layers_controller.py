@@ -28,6 +28,9 @@ class LayersController:
     
     async def get_layer_groups(self):
         return await self.repository.get_all_groups_and_layers()
+    
+    async def get_all_layer_groups(self):
+        return await self.repository.get_layer_group()
 
     async def create_layer(self, layer: LayerCreate, file: UploadFile, file_icon: UploadFile):
         if file:

@@ -605,6 +605,17 @@ async def get_layer_groups(
 ):
     return await controller.get_layer_groups()
 
+@app.get(
+    "/layer-group/all",
+    response_model=list[models.LayerGroups],
+    response_model_exclude={"created_at", "updated_at", "deleted_at"},
+    status_code=status.HTTP_200_OK
+)
+async def get_layer_groups_all(
+    controller: Annotated[LayersController, Depends(LayersController.inject_controller)],
+):
+    return await controller.get_all_layer_groups()
+
 @app.post(
     "/layer/{layer_id}/popup",
     response_model=dict,
