@@ -11,13 +11,14 @@ from Crypto.Util.Padding import pad, unpad
 
 import sentry_sdk
 from dotenv import load_dotenv, find_dotenv
-from fastapi import Body, Depends, FastAPI, status, Response, UploadFile, HTTPException, Form, Body
+from fastapi import Body, Depends, FastAPI, status, Response, UploadFile, HTTPException, Form, Body, File
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import EmailStr
 from typing import Union
 from pathlib import Path
+from typing import Optional, Annotated
 import json
 
 from controllers.auth_controller import AuthController
@@ -26,6 +27,8 @@ from controllers.geo_files_controller import GeoFilesController
 from controllers.process_controller import ProcessController
 from controllers.user_controller import UserController
 from controllers.media_controller import MediaController
+from controllers.layers_controller import LayersController
+from schemas.layers import LayerGroupCreate, LayerCreate
 from schemas.feature import Feature
 from schemas.featureCollection import FeatureCollection
 from schemas.feedback import FeedbackCreate
@@ -85,7 +88,7 @@ async def decrypt_data(encrypted_data: str) -> dict:
 
     return json.loads(plaintext.decode('utf-8'))
 
-app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(lifespan=lifespan)
 
 private_directory = Path("assets/public")
 private_directory.mkdir(parents=True, exist_ok=True)
@@ -543,3 +546,79 @@ async def get_user_dashboard_data(
 ):
 
     return await controller.get_user_dashboard_data()
+
+@app.post("/layer-group",
+    response_model=models.LayerGroups,
+    response_model_exclude={"created_at", "updated_at", "deleted_at"},
+    status_code=status.HTTP_200_OK
+)
+async def create_layer_group(group: LayerGroupCreate,
+    controller: Annotated[LayersController, Depends(LayersController.inject_controller)],
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("layer_admin"))]
+):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    return await controller.create_layer_group(group)
+
+@app.post(
+    "/layer",
+    response_model=models.Layer,
+    response_model_exclude={"created_at", "updated_at", "deleted_at"},
+    status_code=status.HTTP_200_OK
+)
+async def create_layer(
+    controller: Annotated[LayersController, Depends(LayersController.inject_controller)],
+    name: Annotated[str, Form(...)],
+    file: Annotated[UploadFile, File(...)],
+    file_icon: Annotated[UploadFile, File(...)],
+    subtitle: Annotated[str, Form(...)],
+    layer_group_id: Annotated[Optional[str], Form(...)],
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("layer_admin"))]
+):
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    try:
+        data = {
+            "name": name,
+            "layer_group_id": layer_group_id,
+            "subtitle": subtitle,
+        }
+        media_data = LayerCreate(**data)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="JSON inválido")
+
+    return await controller.create_layer(media_data, file, file_icon)
+
+@app.get(
+    "/layer-group",
+    response_model=list[dict],
+    response_model_exclude={"created_at", "updated_at", "deleted_at"},
+    status_code=status.HTTP_200_OK
+)
+async def get_layer_groups(
+    controller: Annotated[LayersController, Depends(LayersController.inject_controller)],
+):
+    return await controller.get_layer_groups()
+
+@app.post(
+    "/layer/{layer_id}/popup",
+    response_model=dict,
+    response_model_exclude={"created_at", "updated_at", "deleted_at"},
+    status_code=status.HTTP_200_OK
+)
+async def get_layer_popup(
+    layer_id: str, 
+    controller: Annotated[LayersController, Depends(LayersController.inject_controller)], 
+    fields: dict,
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("layer_admin"))]
+    ):
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+    
+    return await controller.create_layer_popup(layer_id, fields)

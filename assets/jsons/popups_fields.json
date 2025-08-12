@@ -1,0 +1,1425 @@
+{
+    "APCBio": {
+        "title": "Área de Conservação da Biodiversidade",
+        "fields": {
+            "ID AP": {
+                "property": "COD_area",
+                "unit": ""
+            },
+            "Importância": {
+                "property": "Import_bio",
+                "unit": ""
+            },
+            "Prioridade": {
+                "property": "Prior_acao",
+                "unit": ""
+            },
+            "Ação Principal": {
+                "property": "Acao_princ",
+                "unit": ""
+            },
+            "Bioma": {
+                "property": "Bioma_Zona",
+                "unit": ""
+            }
+        },
+        "titleProperty": null,
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "Aerodromos": {
+        "title": "Aeródromo",
+        "fields": {
+            "Tipo": {
+                "property": "Natureza",
+                "unit": ""
+            },
+            "Superfície": {
+                "property": "superfíci",
+                "unit": ""
+            },
+            "Código": {
+                "property": "códigooac",
+                "unit": ""
+            }
+        },
+        "titleProperty": "nome",
+        "tooltipOffset": [
+            4,
+            -45
+        ]
+    },
+    "Aeroportos": {
+        "title": "Aeroporto Internacional",
+        "fields": {},
+        "titleProperty": "nome",
+        "tooltipOffset": [
+            0,
+            -50
+        ]
+    },
+    "Areas_quilombolas": {
+        "title": "Comunidade Quilombola",
+        "fields": {},
+        "titleProperty": "nm_comunid",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "Assentamentos": {
+        "title": "Assentamento",
+        "fields": {
+            "Área": {
+                "property": "area_hecta",
+                "unit": " ha",
+                "decimals": 2
+            },
+            "Código SIPRA": {
+                "property": "cd_sipra",
+                "unit": ""
+            }
+        },
+        "titleProperty": "nome_proje",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "Aves": {
+        "title": "Incidência de Aves Migratórias",
+        "fields": {
+            "Nome": {
+                "property": "Name",
+                "unit": "",
+                "transform": "(val) => val ? val.replaceAll('_', ' ') : '-'"
+            },
+            "Classificação": {
+                "property": "Classifica",
+                "unit": ""
+            },
+            "Critério": {
+                "property": "Critério",
+                "unit": "",
+                "transform": "(val) => val || '-'"
+            }
+        },
+        "titleProperty": null,
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "Batimetria": {
+        "title": "Batimetria",
+        "fields": {
+            "Profundidade": {
+                "property": "PROFUNDIDA",
+                "unit": "",
+                "decimals": 0
+            }
+        },
+        "titleProperty": null,
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "Bases_combustiveis": {
+        "title": "Base de Combustível",
+        "fields": {},
+        "titleProperty": "nome_ter",
+        "tooltipOffset": [
+            0,
+            -42
+        ]
+    },
+    "Bases_GLP": {
+        "title": "Base de GLP",
+        "fields": {},
+        "titleProperty": "nome_ter",
+        "tooltipOffset": [
+            0,
+            -42
+        ]
+    },
+    "Blocos": {
+        "title": "Bloco de Exploração",
+        "fields": {
+            "Operador": {
+                "property": "OPERADOR_C",
+                "unit": ""
+            },
+            "Contrato": {
+                "property": "NUM_CONTRA",
+                "unit": ""
+            },
+            "Bacia": {
+                "property": "NOM_BACIA",
+                "unit": ""
+            },
+            "Área": {
+                "property": "AREA_TOTAL",
+                "unit": " km²",
+                "decimals": 2
+            }
+        },
+        "titleProperty": "COD_BLOCO",
+        "tooltipOffset": [
+            0,
+            -42
+        ]
+    },
+    "Cabotagem": {
+        "title": "Cabotagem",
+        "fields": {
+            "Navegação": {
+                "property": "navegacao",
+                "unit": ""
+            },
+            "Tipo": {
+                "property": "tipo",
+                "unit": ""
+            },
+            "Extensão": {
+                "property": "ExtensaoKM",
+                "unit": " km",
+                "decimals": 2
+            }
+        },
+        "titleProperty": "nome",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "Campos": {
+        "title": "Campo de Produção",
+        "fields": {
+            "Operador": {
+                "property": "operador",
+                "unit": ""
+            },
+            "Contrato": {
+                "property": "num_contra",
+                "unit": ""
+            },
+            "Bacia": {
+                "property": "nome_bacia",
+                "unit": ""
+            },
+            "Situação": {
+                "property": "etapa",
+                "unit": ""
+            },
+            "Fluido": {
+                "property": "fluido_pri",
+                "unit": ""
+            }
+        },
+        "titleProperty": "name",
+        "tooltipOffset": [
+            0,
+            -42
+        ]
+    },
+    "Cavernas": {
+        "title": "Caverna",
+        "fields": {
+            "Registro CANIE": {
+                "property": "Registro_N",
+                "unit": ""
+            }
+        },
+        "titleProperty": "Caverna",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "Compressao": {
+        "title": "Estação de Compressão",
+        "fields": {},
+        "titleProperty": "Nome",
+        "tooltipOffset": [
+            0,
+            -42
+        ]
+    },
+    "Eolicas_o": {
+        "title": "Usina Eólica",
+        "fields": {
+            "Fase": {
+                "property": "Fase",
+                "unit": ""
+            },
+            "Potência Instalada": {
+                "property": "Potencia",
+                "unit": " kW",
+                "decimals": 2
+            },
+            "Quantidade de Aerogeradores": {
+                "property": "QtdAerogeradores",
+                "unit": "",
+                "decimals": 0
+            },
+            "Processo ANEEL": {
+                "property": "ProcessoANEEL",
+                "unit": ""
+            },
+            "Ato Legal": {
+                "property": "AtoLegal",
+                "unit": ""
+            },
+            "Proprietário": {
+                "property": "Proprietario",
+                "unit": ""
+            },
+            "Tipo de Exploração": {
+                "property": "TipoExploracao",
+                "unit": ""
+            }
+        },
+        "titleProperty": "Nome",
+        "tooltipOffset": [
+            0,
+            -22
+        ]
+    },
+    "Eolicas_c": {
+        "title": "Usina Eólica",
+        "fields": {
+            "Fase": {
+                "property": "Fase",
+                "unit": ""
+            },
+            "Potência Instalada": {
+                "property": "Potencia",
+                "unit": " kW",
+                "decimals": 2
+            },
+            "Quantidade de Aerogeradores": {
+                "property": "QtdAerogeradores",
+                "unit": "",
+                "decimals": 0
+            },
+            "Processo ANEEL": {
+                "property": "ProcessoANEEL",
+                "unit": ""
+            },
+            "Ato Legal": {
+                "property": "AtoLegal",
+                "unit": ""
+            },
+            "Proprietário": {
+                "property": "Proprietario",
+                "unit": ""
+            },
+            "Tipo de Exploração": {
+                "property": "TipoExploracao",
+                "unit": ""
+            }
+        },
+        "titleProperty": "Nome",
+        "tooltipOffset": [
+            0,
+            -22
+        ]
+    },
+    "Ferrovias": {
+        "title": "Ferrovia",
+        "fields": {
+            "Extensão": {
+                "property": "FER_NU_EXT",
+                "unit": " km",
+                "decimals": 2
+            },
+            "Concessão": {
+                "property": "FER_NM",
+                "unit": ""
+            }
+        },
+        "titleProperty": null,
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "Gasodutos": {
+        "title": "Gasoduto",
+        "fields": {
+            "Tipo": {
+                "property": "Tipo",
+                "unit": ""
+            }
+        },
+        "titleProperty": "Nome_Dut_1",
+        "tooltipOffset": [
+            0,
+            -42
+        ]
+    },
+    "H2V_UTE": {
+        "title": "Planta de Hidrogênio Verde",
+        "fields": {},
+        "titleProperty": "Nome",
+        "tooltipOffset": [
+            0,
+            -22
+        ]
+    },
+    "H2V_Mizu": {
+        "title": "Planta de Hidrogênio Verde",
+        "fields": {},
+        "titleProperty": "Nome",
+        "tooltipOffset": [
+            0,
+            -22
+        ]
+    },
+    "LT_existente": {
+        "title": "Linha de Transmissão",
+        "fields": {
+            "Tensão": {
+                "property": "Tensao",
+                "unit": " kV",
+                "decimals": 0
+            },
+            "Concessão": {
+                "property": "Concessao",
+                "unit": ""
+            },
+            "Extensão": {
+                "property": "Extensao",
+                "unit": " km",
+                "decimals": 2
+            }
+        },
+        "titleProperty": "Nome",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "LT_planejada": {
+        "title": "Linha de Transmissão",
+        "fields": {
+            "Extensão": {
+                "property": "extensao",
+                "unit": " km",
+                "decimals": 2
+            },
+            "Previsão de Operação": {
+                "property": "Ano_Planej",
+                "unit": "",
+                "decimals": 0
+            },
+            "Tensão": {
+                "property": "Tensao",
+                "unit": " kV",
+                "decimals": 0
+            }
+        },
+        "titleProperty": "Nome",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "Municipios": {
+        "title": "Limite Municipal de",
+        "fields": {},
+        "titleProperty": "NM_MUN",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "Pocos": {
+        "title": "Poço",
+        "fields": {
+            "Campo": {
+                "property": "nome_campo",
+                "unit": ""
+            },
+            "Situação": {
+                "property": "situacao",
+                "unit": ""
+            },
+            "Operador": {
+                "property": "operador",
+                "unit": ""
+            },
+            "Titularidade": {
+                "property": "titularida",
+                "unit": ""
+            },
+            "Categoria": {
+                "property": "categoria",
+                "unit": ""
+            },
+            "Direção": {
+                "property": "direcao",
+                "unit": ""
+            }
+        },
+        "titleProperty": "name",
+        "tooltipOffset": [
+            0,
+            -42
+        ]
+    },
+    "Polos_gas": {
+        "title": "Polo de Processamento de GN",
+        "fields": {},
+        "titleProperty": "Nome",
+        "tooltipOffset": [
+            0,
+            -42
+        ]
+    },
+    "Pontos_gas": {
+        "title": "Ponto de Entrega de GN",
+        "fields": {},
+        "titleProperty": "Nome",
+        "tooltipOffset": [
+            0,
+            -42
+        ]
+    },
+    "PO_RN_1": {
+        "title": "Complexo Eólico Offshore",
+        "fields": {
+            "Código": {
+                "property": "Codigo",
+                "unit": ""
+            },
+            "Empreendedor": {
+                "property": "Empreendedor",
+                "unit": ""
+            },
+            "Processo": {
+                "property": "Processo",
+                "unit": ""
+            },
+            "FCA": {
+                "property": "FCA",
+                "unit": ""
+            },
+            "Aerogerador": {
+                "property": "Aerogerador",
+                "unit": ""
+            },
+            "Potência Unitária": {
+                "property": "PotUnit",
+                "unit": " MW",
+                "decimals": 2
+            },
+            "Qtd. Aerogeradores": {
+                "property": "Qtd",
+                "unit": "",
+                "decimals": 0
+            },
+            "Potência Total": {
+                "property": "PotTot",
+                "unit": " MW",
+                "decimals": 2
+            }
+        },
+        "titleProperty": "Empreendimento",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "PO_RN_2": {
+        "title": "Complexo Eólico Offshore",
+        "fields": {
+            "Código": {
+                "property": "Codigo",
+                "unit": ""
+            },
+            "Empreendedor": {
+                "property": "Empreendedor",
+                "unit": ""
+            },
+            "Processo": {
+                "property": "Processo",
+                "unit": ""
+            },
+            "FCA": {
+                "property": "FCA",
+                "unit": ""
+            },
+            "Aerogerador": {
+                "property": "Aerogerador",
+                "unit": ""
+            },
+            "Potência Unitária": {
+                "property": "PotUnit",
+                "unit": " MW",
+                "decimals": 2
+            },
+            "Qtd. Aerogeradores": {
+                "property": "Qtd",
+                "unit": "",
+                "decimals": 0
+            },
+            "Potência Total": {
+                "property": "PotTot",
+                "unit": " MW",
+                "decimals": 2
+            }
+        },
+        "titleProperty": "Empreendimento",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "PO_RN_3": {
+        "title": "Complexo Eólico Offshore",
+        "fields": {
+            "Código": {
+                "property": "Codigo",
+                "unit": ""
+            },
+            "Empreendedor": {
+                "property": "Empreendedor",
+                "unit": ""
+            },
+            "Processo": {
+                "property": "Processo",
+                "unit": ""
+            },
+            "FCA": {
+                "property": "FCA",
+                "unit": ""
+            },
+            "Aerogerador": {
+                "property": "Aerogerador",
+                "unit": ""
+            },
+            "Potência Unitária": {
+                "property": "PotUnit",
+                "unit": " MW",
+                "decimals": 2
+            },
+            "Qtd. Aerogeradores": {
+                "property": "Qtd",
+                "unit": "",
+                "decimals": 0
+            },
+            "Potência Total": {
+                "property": "PotTot",
+                "unit": " MW",
+                "decimals": 2
+            }
+        },
+        "titleProperty": "Empreendimento",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "PO_RN_4": {
+        "title": "Complexo Eólico Offshore",
+        "fields": {
+            "Código": {
+                "property": "Codigo",
+                "unit": ""
+            },
+            "Empreendedor": {
+                "property": "Empreendedor",
+                "unit": ""
+            },
+            "Processo": {
+                "property": "Processo",
+                "unit": ""
+            },
+            "FCA": {
+                "property": "FCA",
+                "unit": ""
+            },
+            "Aerogerador": {
+                "property": "Aerogerador",
+                "unit": ""
+            },
+            "Potência Unitária": {
+                "property": "PotUnit",
+                "unit": " MW",
+                "decimals": 2
+            },
+            "Qtd. Aerogeradores": {
+                "property": "Qtd",
+                "unit": "",
+                "decimals": 0
+            },
+            "Potência Total": {
+                "property": "PotTot",
+                "unit": " MW",
+                "decimals": 2
+            }
+        },
+        "titleProperty": "Empreendimento",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "PO_RN_5": {
+        "title": "Complexo Eólico Offshore",
+        "fields": {
+            "Código": {
+                "property": "Codigo",
+                "unit": ""
+            },
+            "Empreendedor": {
+                "property": "Empreendedor",
+                "unit": ""
+            },
+            "Processo": {
+                "property": "Processo",
+                "unit": ""
+            },
+            "FCA": {
+                "property": "FCA",
+                "unit": ""
+            },
+            "Aerogerador": {
+                "property": "Aerogerador",
+                "unit": ""
+            },
+            "Potência Unitária": {
+                "property": "PotUnit",
+                "unit": " MW",
+                "decimals": 2
+            },
+            "Qtd. Aerogeradores": {
+                "property": "Qtd",
+                "unit": "",
+                "decimals": 0
+            },
+            "Potência Total": {
+                "property": "PotTot",
+                "unit": " MW",
+                "decimals": 2
+            }
+        },
+        "titleProperty": "Empreendimento",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "PO_RN_6": {
+        "title": "Complexo Eólico Offshore",
+        "fields": {
+            "Código": {
+                "property": "Codigo",
+                "unit": ""
+            },
+            "Empreendedor": {
+                "property": "Empreendedor",
+                "unit": ""
+            },
+            "Processo": {
+                "property": "Processo",
+                "unit": ""
+            },
+            "FCA": {
+                "property": "FCA",
+                "unit": ""
+            },
+            "Aerogerador": {
+                "property": "Aerogerador",
+                "unit": ""
+            },
+            "Potência Unitária": {
+                "property": "PotUnit",
+                "unit": " MW",
+                "decimals": 2
+            },
+            "Qtd. Aerogeradores": {
+                "property": "Qtd",
+                "unit": "",
+                "decimals": 0
+            },
+            "Potência Total": {
+                "property": "PotTot",
+                "unit": " MW",
+                "decimals": 2
+            }
+        },
+        "titleProperty": "Empreendimento",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "PO_RN_7": {
+        "title": "Complexo Eólico Offshore",
+        "fields": {
+            "Código": {
+                "property": "Codigo",
+                "unit": ""
+            },
+            "Empreendedor": {
+                "property": "Empreendedor",
+                "unit": ""
+            },
+            "Processo": {
+                "property": "Processo",
+                "unit": ""
+            },
+            "FCA": {
+                "property": "FCA",
+                "unit": ""
+            },
+            "Aerogerador": {
+                "property": "Aerogerador",
+                "unit": ""
+            },
+            "Potência Unitária": {
+                "property": "PotUnit",
+                "unit": " MW",
+                "decimals": 2
+            },
+            "Qtd. Aerogeradores": {
+                "property": "Qtd",
+                "unit": "",
+                "decimals": 0
+            },
+            "Potência Total": {
+                "property": "PotTot",
+                "unit": " MW",
+                "decimals": 2
+            }
+        },
+        "titleProperty": "Empreendimento",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "PO_RN_8": {
+        "title": "Complexo Eólico Offshore",
+        "fields": {
+            "Código": {
+                "property": "Codigo",
+                "unit": ""
+            },
+            "Empreendedor": {
+                "property": "Empreendedor",
+                "unit": ""
+            },
+            "Processo": {
+                "property": "Processo",
+                "unit": ""
+            },
+            "FCA": {
+                "property": "FCA",
+                "unit": ""
+            },
+            "Aerogerador": {
+                "property": "Aerogerador",
+                "unit": ""
+            },
+            "Potência Unitária": {
+                "property": "PotUnit",
+                "unit": " MW",
+                "decimals": 2
+            },
+            "Qtd. Aerogeradores": {
+                "property": "Qtd",
+                "unit": "",
+                "decimals": 0
+            },
+            "Potência Total": {
+                "property": "PotTot",
+                "unit": " MW",
+                "decimals": 2
+            }
+        },
+        "titleProperty": "Empreendimento",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "PO_RN_9": {
+        "title": "Complexo Eólico Offshore",
+        "fields": {
+            "Código": {
+                "property": "Codigo",
+                "unit": ""
+            },
+            "Empreendedor": {
+                "property": "Empreendedor",
+                "unit": ""
+            },
+            "Processo": {
+                "property": "Processo",
+                "unit": ""
+            },
+            "FCA": {
+                "property": "FCA",
+                "unit": ""
+            },
+            "Aerogerador": {
+                "property": "Aerogerador",
+                "unit": ""
+            },
+            "Potência Unitária": {
+                "property": "PotUnit",
+                "unit": " MW",
+                "decimals": 2
+            },
+            "Qtd. Aerogeradores": {
+                "property": "Qtd",
+                "unit": "",
+                "decimals": 0
+            },
+            "Potência Total": {
+                "property": "PotTot",
+                "unit": " MW",
+                "decimals": 2
+            }
+        },
+        "titleProperty": "Empreendimento",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "PO_RN_10": {
+        "title": "Complexo Eólico Offshore",
+        "fields": {
+            "Código": {
+                "property": "Codigo",
+                "unit": ""
+            },
+            "Empreendedor": {
+                "property": "Empreendedor",
+                "unit": ""
+            },
+            "Processo": {
+                "property": "Processo",
+                "unit": ""
+            },
+            "FCA": {
+                "property": "FCA",
+                "unit": ""
+            },
+            "Aerogerador": {
+                "property": "Aerogerador",
+                "unit": ""
+            },
+            "Potência Unitária": {
+                "property": "PotUnit",
+                "unit": " MW",
+                "decimals": 2
+            },
+            "Qtd. Aerogeradores": {
+                "property": "Qtd",
+                "unit": "",
+                "decimals": 0
+            },
+            "Potência Total": {
+                "property": "PotTot",
+                "unit": " MW",
+                "decimals": 2
+            }
+        },
+        "titleProperty": "Empreendimento",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "PO_RN_11": {
+        "title": "Complexo Eólico Offshore",
+        "fields": {
+            "Código": {
+                "property": "Codigo",
+                "unit": ""
+            },
+            "Empreendedor": {
+                "property": "Empreendedor",
+                "unit": ""
+            },
+            "Processo": {
+                "property": "Processo",
+                "unit": ""
+            },
+            "FCA": {
+                "property": "FCA",
+                "unit": ""
+            },
+            "Aerogerador": {
+                "property": "Aerogerador",
+                "unit": ""
+            },
+            "Potência Unitária": {
+                "property": "PotUnit",
+                "unit": " MW",
+                "decimals": 2
+            },
+            "Qtd. Aerogeradores": {
+                "property": "Qtd",
+                "unit": "",
+                "decimals": 0
+            },
+            "Potência Total": {
+                "property": "PotTot",
+                "unit": " MW",
+                "decimals": 2
+            }
+        },
+        "titleProperty": "Empreendimento",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "PO_RN_12": {
+        "title": "Complexo Eólico Offshore",
+        "fields": {
+            "Código": {
+                "property": "Codigo",
+                "unit": ""
+            },
+            "Empreendedor": {
+                "property": "Empreendedor",
+                "unit": ""
+            },
+            "Processo": {
+                "property": "Processo",
+                "unit": ""
+            },
+            "FCA": {
+                "property": "FCA",
+                "unit": ""
+            },
+            "Aerogerador": {
+                "property": "Aerogerador",
+                "unit": ""
+            },
+            "Potência Unitária": {
+                "property": "PotUnit",
+                "unit": " MW",
+                "decimals": 2
+            },
+            "Qtd. Aerogeradores": {
+                "property": "Qtd",
+                "unit": "",
+                "decimals": 0
+            },
+            "Potência Total": {
+                "property": "PotTot",
+                "unit": " MW",
+                "decimals": 2
+            }
+        },
+        "titleProperty": "Empreendimento",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "PO_RN_13": {
+        "title": "Complexo Eólico Offshore",
+        "fields": {
+            "Código": {
+                "property": "Codigo",
+                "unit": ""
+            },
+            "Empreendedor": {
+                "property": "Empreendedor",
+                "unit": ""
+            },
+            "Processo": {
+                "property": "Processo",
+                "unit": ""
+            },
+            "FCA": {
+                "property": "FCA",
+                "unit": ""
+            },
+            "Aerogerador": {
+                "property": "Aerogerador",
+                "unit": ""
+            },
+            "Potência Unitária": {
+                "property": "PotUnit",
+                "unit": " MW",
+                "decimals": 2
+            },
+            "Qtd. Aerogeradores": {
+                "property": "Qtd",
+                "unit": "",
+                "decimals": 0
+            },
+            "Potência Total": {
+                "property": "PotTot",
+                "unit": " MW",
+                "decimals": 2
+            }
+        },
+        "titleProperty": "Empreendimento",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "PO_RN_14": {
+        "title": "Complexo Eólico Offshore",
+        "fields": {
+            "Código": {
+                "property": "Codigo",
+                "unit": ""
+            },
+            "Empreendedor": {
+                "property": "Empreendedor",
+                "unit": ""
+            },
+            "Processo": {
+                "property": "Processo",
+                "unit": ""
+            },
+            "FCA": {
+                "property": "FCA",
+                "unit": ""
+            },
+            "Aerogerador": {
+                "property": "Aerogerador",
+                "unit": ""
+            },
+            "Potência Unitária": {
+                "property": "PotUnit",
+                "unit": " MW",
+                "decimals": 2
+            },
+            "Qtd. Aerogeradores": {
+                "property": "Qtd",
+                "unit": "",
+                "decimals": 0
+            },
+            "Potência Total": {
+                "property": "PotTot",
+                "unit": " MW",
+                "decimals": 2
+            }
+        },
+        "titleProperty": "Empreendimento",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "Portos": {
+        "title": "Porto",
+        "fields": {
+            "Tipo": {
+                "property": "tipo",
+                "unit": ""
+            }
+        },
+        "titleProperty": "nome",
+        "tooltipOffset": [
+            0,
+            -50
+        ]
+    },
+    "Porto_ilha": {
+        "title": "Estação de Monitoramento",
+        "fields": {
+            "Proprietário": {
+                "property": "Proprietário",
+                "unit": ""
+            },
+            "Instrumento": {
+                "property": "Instrumento",
+                "unit": ""
+            },
+            "Localização": {
+                "property": "Localização",
+                "unit": ""
+            },
+            "Altura em Relação ao Nível do Mar": {
+                "property": "Altura em Relação ao Nível do Mar",
+                "unit": "m"
+            },
+            "Data de Instalação": {
+                "property": "Data da Instalação",
+                "unit": ""
+            }
+        },
+        "titleProperty": "nome",
+        "tooltipOffset": [
+            0,
+            -50
+        ],
+        "buttons": [
+            {
+                "label": "Dados",
+                "icon": "info",
+                "id": "porto-ilha"
+            }
+        ]
+    },
+    "Refinarias": {
+        "title": "Refinaria",
+        "fields": {},
+        "titleProperty": "nome_ter",
+        "tooltipOffset": [
+            0,
+            -42
+        ]
+    },
+    "RN": {
+        "title": "Limite Estadual",
+        "fields": {},
+        "titleProperty": "NM_UF",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "Rodovias": {
+        "title": "Rodovia",
+        "fields": {},
+        "titleProperty": "cod",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "RSE": {
+        "title": "Rota para Subestação Existente",
+        "fields": {},
+        "titleProperty": null,
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "RSP": {
+        "title": "Rota para Subestação Planejada",
+        "fields": {},
+        "titleProperty": null,
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "RSS": {
+        "title": "Rota para Subestação Sugerida",
+        "fields": {},
+        "titleProperty": null,
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "SE_existente": {
+        "title": "Subestação",
+        "fields": {
+            "Ano de entrada em operação": {
+                "property": "Ano_Opera",
+                "unit": "",
+                "decimals": 0
+            },
+            "Concessão": {
+                "property": "Concession",
+                "unit": ""
+            },
+            "Tensão": {
+                "property": "Tensao",
+                "unit": " kV",
+                "decimals": 0
+            }
+        },
+        "titleProperty": "Nome",
+        "tooltipOffset": [
+            5,
+            -15
+        ]
+    },
+    "SE_planejada": {
+        "title": "Subestação",
+        "fields": {
+            "Tensão": {
+                "property": "Tensao",
+                "unit": " kV",
+                "decimals": 0
+            },
+            "Previsão de Operação": {
+                "property": "Ano_Opera",
+                "unit": "",
+                "decimals": 0
+            }
+        },
+        "titleProperty": "Nome",
+        "tooltipOffset": [
+            5,
+            -15
+        ]
+    },
+    "SE_sugerida": {
+        "title": "Área para Subestação Sugerida",
+        "fields": {},
+        "titleProperty": null,
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "Sitios_arqueologicos": {
+        "title": "Sítio Arqueológico",
+        "fields": {
+            "Registro IPHAN": {
+                "property": "co_iphan",
+                "unit": ""
+            }
+        },
+        "titleProperty": "identifica",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "Terminais_petro": {
+        "title": "Terminal Petroquímico",
+        "fields": {},
+        "titleProperty": "nome_ter",
+        "tooltipOffset": [
+            0,
+            -42
+        ]
+    },
+    "UCs": {
+        "title": "Unidade de Conservação",
+        "fields": {
+            "Manejo": {
+                "property": "Manejo",
+                "unit": ""
+            },
+            "Área": {
+                "property": "Área_ha",
+                "unit": " ha",
+                "decimals": 2
+            },
+            "Esfera": {
+                "property": "esfera",
+                "unit": ""
+            },
+            "Decreto": {
+                "property": "I_Criacao",
+                "unit": ""
+            }
+        },
+        "titleProperty": "UC_1",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "UFV_o": {
+        "title": "Usina Fotovoltáica",
+        "fields": {
+            "Potência Instalada": {
+                "property": "Potencia",
+                "unit": " kW",
+                "decimals": 2
+            },
+            "Início de Operação em": {
+                "property": "ini_oper",
+                "unit": ""
+            },
+            "CEG": {
+                "property": "ceg",
+                "unit": ""
+            },
+            "Proprietário": {
+                "property": "propriet",
+                "unit": ""
+            }
+        },
+        "titleProperty": "nome",
+        "tooltipOffset": [
+            0,
+            -22
+        ]
+    },
+    "UFV_c": {
+        "title": "Usina Fotovoltáica",
+        "fields": {
+            "Fase": {
+                "property": "FASE_USINA",
+                "unit": ""
+            },
+            "Potência Instalada": {
+                "property": "POT_KW",
+                "unit": " kW",
+                "decimals": 2
+            },
+            "CEG": {
+                "property": "CEG",
+                "unit": ""
+            },
+            "Proprietário": {
+                "property": "PROPRIETAR",
+                "unit": ""
+            }
+        },
+        "titleProperty": "NOME",
+        "tooltipOffset": [
+            0,
+            -22
+        ]
+    },
+    "upload": {
+        "title": "Camada Carregada",
+        "fields": {},
+        "titleProperty": "name",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "ZAs": {
+        "title": "Zona Ambiental",
+        "fields": {},
+        "titleProperty": "UC",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "Zonas_urbanas": {
+        "title": "Zona Urbana",
+        "fields": {
+            "Densidade": {
+                "property": "Densidade",
+                "unit": ""
+            }
+        },
+        "titleProperty": "Tipo",
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    },
+    "ZT": {
+        "title": "Zona de Transição",
+        "fields": {},
+        "titleProperty": null,
+        "tooltipOffset": [
+            0,
+            -10
+        ]
+    }
+}

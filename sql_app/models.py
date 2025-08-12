@@ -1,9 +1,43 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
+from typing import List, Optional
 import sqlalchemy.dialects.postgresql as pg
 from sqlmodel import Column, Field, SQLModel, Relationship
 
+
+class LayerGroups(SQLModel, table=True):
+    __tablename__ = "layer_group"
+
+    id: UUID = Field(
+        sa_column=Column(pg.UUID, primary_key=True, unique=True, default=uuid4)
+    )
+
+    created_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
+    updated_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
+    deleted_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=None, nullable=True))
+
+    name: str = Field(index=True)
+    layer_group_id: UUID | None = Field(
+        default=None, foreign_key="layer_group.id"
+    )
+
+class Layer(SQLModel, table=True):
+    __tablename__ = "Layer"
+
+    id: UUID = Field(
+        sa_column=Column(pg.UUID, primary_key=True, unique=True, default=uuid4)
+    )
+    created_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
+    updated_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
+    deleted_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=None, nullable=True))
+
+    name: str = Field(index=True)
+    subtitle: str
+    path_icon: str
+    path: str
+    activated: bool = False
+    layer_group_id: UUID = Field(foreign_key="layer_group.id")
 
 class GroupPermissionLink(SQLModel, table=True):
     group_id: UUID | None = Field(default=None, foreign_key="Groups.id", primary_key=True)
