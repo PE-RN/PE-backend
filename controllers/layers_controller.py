@@ -119,4 +119,25 @@ class LayersController:
 
         return new_popup
 
+    async def create_layer_style(self, id: str, style: dict):
+        layer = await self.repository.get_layer_by_id(id)
+        if not layer:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Layer not found")
+        layer_name = layer.name.replace(" ", "_")
 
+        style_path = Path("assets/jsons/layers_style.json")
+        if style_path.exists():
+            with open(style_path, "r", encoding="utf-8") as f:
+                try:
+                    existing_data = json.load(f)
+                except json.JSONDecodeError:
+                    existing_data = {}
+        else:
+            existing_data = {}
+        existing_data[layer_name] = style
+
+        with open(style_path, "w", encoding="utf-8") as f:
+            json.dump(existing_data, f, ensure_ascii=False, indent=4)
+
+        return existing_data
+    

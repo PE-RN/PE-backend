@@ -635,3 +635,21 @@ async def get_layer_popup(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
     
     return await controller.create_layer_popup(layer_id, fields)
+
+@app.post(
+    "/layer/{layer_id}/style",
+    response_model=dict,
+    response_model_exclude={"created_at", "updated_at", "deleted_at"},
+    status_code=status.HTTP_200_OK
+)
+async def layer_style(
+    layer_id: str, 
+    controller: Annotated[LayersController, Depends(LayersController.inject_controller)], 
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    fields: dict,
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("layer_admin"))]
+):
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    return await controller.create_layer_style(layer_id, fields)
