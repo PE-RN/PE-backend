@@ -723,7 +723,7 @@ async def delete_layer_group(
 
     return await controller.delete_layer_group(id)
 
-app.delete("/layer/{id}",
+@app.delete("/layer/{id}",
     response_model=models.Layer,
     response_model_exclude={"created_at", "updated_at", "deleted_at"},
     status_code=status.HTTP_200_OK
