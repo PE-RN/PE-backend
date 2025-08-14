@@ -77,8 +77,8 @@ class LayersController:
             layer_name: {
                 "title": fields["title"],
                 "fields": fields_popup,
-                "titleProperty": None,
-                "tooltipOffset": [0, -42]
+                "titleProperty": fields["titleProperty"],
+                "tooltipOffset": [0, -22]
             }
         }
 
