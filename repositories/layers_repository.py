@@ -5,6 +5,7 @@ from sqlalchemy.orm import selectinload
 from schemas.layers import LayerGroupCreate, LayerCreate
 from sqlmodel import select, delete
 import datetime
+import os
 
 
 class LayersRepository:
@@ -72,29 +73,52 @@ class LayersRepository:
         await self.db.commit()
         await self.db.refresh(new_layer)
         return new_layer
-    
+
+    async def update_layer(self, layer: LayerCreate, id: str):
+        existing_layer = await self.get_layer_by_id(id)
+
+        if not existing_layer:
+            raise HTTPException(status_code=404, detail="Camada não encontrada")
+
+        icon_path = os.path.join("assets", "public", "icon", existing_layer.name)
+        shape_path = os.path.join("assets", "public", "shape", existing_layer.name)
+
+        for file_path in [icon_path, shape_path]:
+            if os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                except Exception:
+                    pass
+
+        for key, value in layer.model_dump().items():
+            setattr(existing_layer, key, value)
+
+        await self.db.commit()
+        await self.db.refresh(existing_layer)
+        return existing_layer
+
     async def get_layer_by_id(self, id: str):
-        statement = select(models.Layer).filter_by(id=id).fetch(1)
+        statement = select(models.Layer).where(models.Layer.deleted_at.is_(None)).filter_by(id=id).fetch(1)
         layer = await self.db.exec(statement)
         return layer.first()
     
     async def get_layer_group_by_id(self, id: str):
-        statement = select(models.LayerGroups).filter_by(id=id).fetch(1)
+        statement = select(models.LayerGroups).where(models.LayerGroups.deleted_at.is_(None)).filter_by(id=id).fetch(1)
         layer_group = await self.db.exec(statement)
         return layer_group.first()
 
     async def get_layer_group(self):
-        statement = select(models.LayerGroups)
+        statement = select(models.LayerGroups).where(models.LayerGroups.deleted_at.is_(None))
         layer_groups = await self.db.exec(statement)
         return layer_groups.all() 
     
     async def get_layer_by_group_id(self, id: str):
-        statement = select(models.Layer).filter_by(layer_group_id=id)
+        statement = select(models.Layer).where(models.Layer.deleted_at.is_(None)).filter_by(layer_group_id=id)
         layer = await self.db.exec(statement)
         return layer.all()
 
     async def get_group_by_group_id(self, id: str):
-        statement = select(models.LayerGroups).filter_by(layer_group_id=id)
+        statement = select(models.LayerGroups).where(models.LayerGroups.deleted_at.is_(None)).filter_by(layer_group_id=id)
         group = await self.db.exec(statement)
         return group.all()
 

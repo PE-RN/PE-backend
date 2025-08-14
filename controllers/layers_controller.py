@@ -41,41 +41,14 @@ class LayersController:
         return await self.repository.get_layer_group()
 
     async def create_layer(self, layer: LayerCreate, file: UploadFile, file_icon: UploadFile):
-        if file:
-            private_directory = Path("assets/public/layers")
-            private_directory.mkdir(parents=True, exist_ok=True)
-
-            layer_name = layer.name.replace(" ", "_")
-
-            file_extension = Path(file.filename).suffix
-            file_location = private_directory / f"{layer_name}{file_extension}"
-
-            try:
-                with open(file_location, "wb") as buffer:
-                    shutil.copyfileobj(file.file, buffer)
-            except Exception as e:
-                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error saving file: {str(e)}")
-
-            layer.path = str(file_location)
-
-        if file_icon:
-            private_directory = Path("assets/public/icons")
-            private_directory.mkdir(parents=True, exist_ok=True)
-
-            layer_name = layer.name.replace(" ", "_")
-
-            file_extension = Path(file_icon.filename).suffix
-            file_location = private_directory / f"{layer_name}{file_extension}"
-            
-            try:
-                with open(file_location, "wb") as buffer:
-                    shutil.copyfileobj(file_icon.file, buffer)
-            except Exception as e:
-                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error saving file: {str(e)}")
-
-            layer.path_icon = str(file_location)
+        await self.create_layer_files(layer, file, file_icon)
 
         return await self.repository.create_layer(layer)
+    
+    async def update_layer(self, layer: LayerCreate, file: UploadFile, file_icon: UploadFile, id: str):
+        await self.create_layer_files(layer, file, file_icon)
+
+        return await self.repository.update_layer(layer, id)
     
     async def create_layer_popup(self, id: str, fields: dict):
         layer = await self.repository.get_layer_by_id(id)
@@ -149,3 +122,37 @@ class LayersController:
 
         return existing_data
     
+    async def create_layer_files(self, layer: LayerCreate, file: UploadFile, file_icon: UploadFile):
+        if file:
+            private_directory = Path("assets/public/layers")
+            private_directory.mkdir(parents=True, exist_ok=True)
+
+            layer_name = layer.name.replace(" ", "_")
+
+            file_extension = Path(file.filename).suffix
+            file_location = private_directory / f"{layer_name}{file_extension}"
+
+            try:
+                with open(file_location, "wb") as buffer:
+                    shutil.copyfileobj(file.file, buffer)
+            except Exception as e:
+                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error saving file: {str(e)}")
+
+            layer.path = str(file_location)
+
+        if file_icon:
+            private_directory = Path("assets/public/icons")
+            private_directory.mkdir(parents=True, exist_ok=True)
+
+            layer_name = layer.name.replace(" ", "_")
+
+            file_extension = Path(file_icon.filename).suffix
+            file_location = private_directory / f"{layer_name}{file_extension}"
+            
+            try:
+                with open(file_location, "wb") as buffer:
+                    shutil.copyfileobj(file_icon.file, buffer)
+            except Exception as e:
+                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error saving file: {str(e)}")
+
+            layer.path_icon = str(file_location)

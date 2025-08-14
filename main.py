@@ -596,6 +596,40 @@ async def create_layer(
 
     return await controller.create_layer(media_data, file, file_icon)
 
+@app.put(
+    "/layer/{id}",
+    response_model=models.Layer,
+    response_model_exclude={"created_at", "updated_at", "deleted_at"},
+    status_code=status.HTTP_200_OK
+)
+async def update_layer(
+    id: str,
+    controller: Annotated[LayersController, Depends(LayersController.inject_controller)],
+    name: Annotated[str, Form(...)],
+    file: Annotated[UploadFile, File(...)],
+    file_icon: Annotated[UploadFile, File(...)],
+    subtitle: Annotated[str, Form(...)],
+    layer_group_id: Annotated[Optional[str], Form(...)],
+    activated: Annotated[bool, Form(...)],
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("layer_admin"))]
+):
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    try:
+        data = {
+            "name": name,
+            "layer_group_id": layer_group_id,
+            "subtitle": subtitle,
+            "activated": activated
+        }
+        media_data = LayerCreate(**data)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="JSON inválido")
+
+    return await controller.update_layer(media_data, file, file_icon, id)
+
 @app.get(
     "/layer-group",
     response_model=list[dict],
