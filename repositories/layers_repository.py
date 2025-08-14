@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sql_app import models
 from sqlalchemy.orm import selectinload
@@ -18,7 +19,52 @@ class LayersRepository:
         await self.db.commit()
         await self.db.refresh(new_layer_group)
         return new_layer_group
+
+    async def update_layer_group(self, layer_group: LayerGroupCreate, id:str):
+        existing_layer_group = await self.get_layer_group_by_id(id)
+
+        if not existing_layer_group:
+            raise HTTPException(status_code=404, detail="Layer group not found")
+
+        for key, value in layer_group.model_dump().items():
+            setattr(existing_layer_group, key, value)
+
+        existing_layer_group.updated_at = datetime.datetime.now()
+        await self.db.commit()
+        await self.db.refresh(existing_layer_group)
+
+        return existing_layer_group
     
+    async def delete_layer_group(self, id: str):
+        existing_layer_group = await self.get_layer_group_by_id(id)
+        if not existing_layer_group:
+            raise HTTPException(status_code=404, detail="Grupo de camadas não encontrado")
+        
+        existing_sub_groups = await self.get_group_by_group_id(id)
+        if existing_sub_groups:
+            raise HTTPException(status_code=400, detail="Não é possível excluir um grupo que possui subgrupos.")
+        
+        existing_layers = await self.get_layer_by_group_id(id)
+        now = datetime.datetime.now()
+
+        for layer in existing_layers or []:
+            layer.deleted_at = now
+
+        existing_layer_group.deleted_at = now
+        await self.db.commit()
+
+        return {"detail": "Layer group deleted successfully"}
+    
+    async def delete_layer(self, id: str):
+        existing_layer = await self.get_layer_by_id(id)
+        if not existing_layer:
+            raise HTTPException(status_code=404, detail="Layer not found")
+
+        await self.db.delete(existing_layer)
+        await self.db.commit()
+
+        return {"detail": "Layer deleted successfully"}
+
     async def create_layer(self, layer: LayerCreate):
         new_layer = models.Layer(**layer.model_dump())
 
@@ -31,6 +77,11 @@ class LayersRepository:
         statement = select(models.Layer).filter_by(id=id).fetch(1)
         layer = await self.db.exec(statement)
         return layer.first()
+    
+    async def get_layer_group_by_id(self, id: str):
+        statement = select(models.LayerGroups).filter_by(id=id).fetch(1)
+        layer_group = await self.db.exec(statement)
+        return layer_group.first()
 
     async def get_layer_group(self):
         statement = select(models.LayerGroups)
@@ -38,9 +89,14 @@ class LayersRepository:
         return layer_groups.all() 
     
     async def get_layer_by_group_id(self, id: str):
-        statement = select(models.Layer).filter_by(layer_group_id=id).fetch(1)
+        statement = select(models.Layer).filter_by(layer_group_id=id)
         layer = await self.db.exec(statement)
-        return layer.first()
+        return layer.all()
+
+    async def get_group_by_group_id(self, id: str):
+        statement = select(models.LayerGroups).filter_by(layer_group_id=id)
+        group = await self.db.exec(statement)
+        return group.all()
 
     async def get_all_groups_and_layers(self):
     # Buscar todos os grupos

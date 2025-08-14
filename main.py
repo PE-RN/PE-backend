@@ -653,3 +653,55 @@ async def layer_style(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
     return await controller.create_layer_style(layer_id, fields)
+
+@app.put("/layer-group/{id}",
+    response_model=models.LayerGroups,
+    response_model_exclude={"created_at", "updated_at", "deleted_at"},
+    status_code=status.HTTP_200_OK
+)
+async def update_layer_group(
+    id: str,
+    group: LayerGroupCreate,
+    controller: Annotated[LayersController, Depends(LayersController.inject_controller)],
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("layer_admin"))]
+):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    return await controller.update_layer_group(group, id)
+
+@app.delete("/layer-group/{id}",
+    response_model=models.LayerGroups,
+    response_model_exclude={"created_at", "updated_at", "deleted_at"},
+    status_code=status.HTTP_200_OK
+)
+async def delete_layer_group(
+    id: str,
+    controller: Annotated[LayersController, Depends(LayersController.inject_controller)],
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("layer_admin"))]
+):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    return await controller.delete_layer_group(id)
+
+app.delete("/layer/{id}",
+    response_model=models.Layer,
+    response_model_exclude={"created_at", "updated_at", "deleted_at"},
+    status_code=status.HTTP_200_OK
+)
+async def delete_layer(
+    id: str,
+    controller: Annotated[LayersController, Depends(LayersController.inject_controller)],
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("layer_admin"))]
+):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    return await controller.delete_layer(id)

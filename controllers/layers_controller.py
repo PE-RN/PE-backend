@@ -20,9 +20,17 @@ class LayersController:
         )    
 
     async def create_layer_group(self, layer_group: LayerGroupCreate):
-        print(layer_group)
         return await self.repository.create_layer_group(layer_group)
+
+    async def update_layer_group(self, layer_group: LayerGroupCreate, id:str):
+        return await self.repository.update_layer_group(layer_group, id)
     
+    async def delete_layer_group(self, id:str):
+        return await self.repository.delete_layer_group(id)
+    
+    async def delete_layer(self, id:str):
+        return await self.repository.delete_layer(id)
+
     async def get_layer_by_group_id(self, id: str):
         return await self.repository.get_layer_by_group_id(id)
     
@@ -101,7 +109,7 @@ class LayersController:
             }
         }
 
-        json_path = Path("assets/jsons/popups_fields.json")
+        json_path = Path("assets/public/jsons/popups_fields.json")
 
         if json_path.exists():
             with open(json_path, "r", encoding="utf-8") as f:
@@ -125,7 +133,7 @@ class LayersController:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Layer not found")
         layer_name = layer.name.replace(" ", "_")
 
-        style_path = Path("assets/jsons/layers_style.json")
+        style_path = Path("assets/public/jsons/layers_style.json")
         if style_path.exists():
             with open(style_path, "r", encoding="utf-8") as f:
                 try:
