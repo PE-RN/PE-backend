@@ -4,6 +4,7 @@ from sql_app import models
 from sqlalchemy.orm import selectinload
 from schemas.layers import LayerGroupCreate, LayerCreate
 from sqlmodel import select, delete
+from pathlib import Path
 import datetime
 import os
 
@@ -60,7 +61,43 @@ class LayersRepository:
         existing_layer = await self.get_layer_by_id(id)
         if not existing_layer:
             raise HTTPException(status_code=404, detail="Layer not found")
+        
+        layer_name = existing_layer.name.replace(" ", "_")
 
+        # Remove arquivos de ícone e shape
+        icon_path = os.path.join("assets", "public", "icon", layer_name)
+        shape_path = os.path.join("assets", "public", "shape", layer_name)
+
+        for file_path in [icon_path, shape_path]:
+            if os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                except Exception:
+                    pass
+
+        import json
+
+        # Remove ocorrências nos arquivos JSON de estilos e popups
+        json_files = [
+            Path("assets/public/jsons/layer_style.json"),
+            Path("assets/public/jsons/popups_fields.json"),
+        ]
+
+        for json_file in json_files:
+            if json_file.exists():
+                try:
+                    with open(json_file, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                except json.JSONDecodeError:
+                    data = {}
+
+                # Se existir a chave com o nome da camada, remove
+                if layer_name in data:
+                    del data[layer_name]
+                    with open(json_file, "w", encoding="utf-8") as f:
+                        json.dump(data, f, ensure_ascii=False, indent=4)
+
+        # Remove do banco
         await self.db.delete(existing_layer)
         await self.db.commit()
 
@@ -79,9 +116,11 @@ class LayersRepository:
 
         if not existing_layer:
             raise HTTPException(status_code=404, detail="Camada não encontrada")
+        
+        layer_name = existing_layer.name.replace(" ", "_")
 
-        icon_path = os.path.join("assets", "public", "icon", existing_layer.name)
-        shape_path = os.path.join("assets", "public", "shape", existing_layer.name)
+        icon_path = os.path.join("assets", "public", "icon", layer_name)
+        shape_path = os.path.join("assets", "public", "shape", layer_name)
 
         for file_path in [icon_path, shape_path]:
             if os.path.exists(file_path):
