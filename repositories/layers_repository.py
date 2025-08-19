@@ -6,6 +6,7 @@ from schemas.layers import LayerGroupCreate, LayerCreate
 from sqlmodel import select, delete
 from pathlib import Path
 import datetime
+from utils.utils import Utils
 import os
 
 
@@ -62,7 +63,7 @@ class LayersRepository:
         if not existing_layer:
             raise HTTPException(status_code=404, detail="Layer not found")
         
-        layer_name = existing_layer.name.replace(" ", "_")
+        layer_name = Utils().format_layer_name(existing_layer.name)
 
         # Remove arquivos de ícone e shape
         icon_path = os.path.join("assets", "public", "icon", layer_name)
@@ -117,7 +118,7 @@ class LayersRepository:
         if not existing_layer:
             raise HTTPException(status_code=404, detail="Camada não encontrada")
         
-        layer_name = existing_layer.name.replace(" ", "_")
+        layer_name = Utils().format_layer_name(existing_layer.name)
 
         icon_path = os.path.join("assets", "public", "icon", layer_name)
         shape_path = os.path.join("assets", "public", "shape", layer_name)

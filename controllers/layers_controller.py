@@ -7,6 +7,7 @@ from schemas.layers import LayerCreate,LayerGroupCreate
 from pathlib import Path
 from fastapi import Depends, HTTPException, status, UploadFile
 from sql_app.database import get_db
+from utils.utils import Utils
 import shutil
 
 class LayersController:
@@ -50,8 +51,8 @@ class LayersController:
         if style_path.exists():
             with open(style_path, "r", encoding="utf-8") as f:
                 existing_style = json.load(f) 
-
-        layer_name =  layer.name.replace(" ", "_")   
+                
+        layer_name = Utils().format_layer_name(layer.name) 
 
         if existing_popup and layer_name in existing_popup:
             popup = existing_popup[layer_name]   
@@ -94,7 +95,7 @@ class LayersController:
 
         data = data.get('features', [])
 
-        layer_name = layer.name.replace(" ", "_")
+        layer_name = Utils().format_layer_name(layer.name)
 
         fields_popup = {}
         if len(data) > 0:
@@ -135,7 +136,7 @@ class LayersController:
         layer = await self.repository.get_layer_by_id(id)
         if not layer:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Layer not found")
-        layer_name = layer.name.replace(" ", "_")
+        layer_name = Utils().format_layer_name(layer.name)
 
         style_path = Path("assets/public/jsons/layers_style.json")
         if style_path.exists():
@@ -158,7 +159,7 @@ class LayersController:
             private_directory = Path("assets/public/layers")
             private_directory.mkdir(parents=True, exist_ok=True)
 
-            layer_name = layer.name.replace(" ", "_")
+            layer_name = Utils().format_layer_name(layer.name)
 
             file_extension = Path(file.filename).suffix
             file_location = private_directory / f"{layer_name}{file_extension}"
@@ -175,7 +176,7 @@ class LayersController:
             private_directory = Path("assets/public/icons")
             private_directory.mkdir(parents=True, exist_ok=True)
 
-            layer_name = layer.name.replace(" ", "_")
+            layer_name = Utils().format_layer_name(layer.name)
 
             file_extension = Path(file_icon.filename).suffix
             file_location = private_directory / f"{layer_name}{file_extension}"
