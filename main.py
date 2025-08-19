@@ -739,3 +739,20 @@ async def delete_layer(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
     return await controller.delete_layer(id)
+
+@app.get("/layer/{id}",
+    response_model=dict,
+    response_model_exclude={"created_at", "updated_at", "deleted_at"},
+    status_code=status.HTTP_200_OK
+)
+async def get_layer_id(
+    id: str,
+    controller: Annotated[LayersController, Depends(LayersController.inject_controller)],
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("layer_admin"))]
+):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    return await controller.get_layer_by_id(id)

@@ -34,6 +34,37 @@ class LayersController:
     async def get_layer_by_group_id(self, id: str):
         return await self.repository.get_layer_by_group_id(id)
     
+    async def get_layer_by_id(self, id: str):
+        layer = await self.repository.get_layer_by_id(id)
+
+        if not layer:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Layer não encontrada")
+
+        popup_path = Path("assets/public/jsons/popups_fields.json")
+        style_path = Path("assets/public/jsons/layers_style.json")
+
+        if popup_path.exists():
+            with open(popup_path, "r", encoding="utf-8") as f:
+                existing_popup = json.load(f)   
+
+        if style_path.exists():
+            with open(style_path, "r", encoding="utf-8") as f:
+                existing_style = json.load(f) 
+
+        layer_name =  layer.name.replace(" ", "_")   
+
+        if existing_popup and layer_name in existing_popup:
+            popup = existing_popup[layer_name]   
+
+        if existing_style and layer_name in existing_style:
+            style = existing_style[layer_name]
+        
+        return {
+            "layer": layer,
+            "popup": popup if 'popup' in locals() else None,
+            "style": style if 'style' in locals() else None
+        }                       
+    
     async def get_layer_groups(self):
         return await self.repository.get_all_groups_and_layers()
     
