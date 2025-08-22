@@ -125,8 +125,10 @@ class AuthController:
                 return 'resend_email'
 
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado!")
+        
+        is_admin = await self.user_is_admin(repository=self.repository, user=user)
 
-        return Token(access_token=self.generate_access_token(email), refresh_token=self.generate_refresh_token(email))
+        return Token(access_token=self.generate_access_token(email), refresh_token=self.generate_refresh_token(email), is_admin=is_admin)
 
     async def authenticate_user(self, email: EmailStr, password: str) -> User | None:
 
@@ -342,3 +344,14 @@ class AuthController:
         user: User
     ) -> bool:
         return await repository.check_permission(user, permission_name)
+    
+    @staticmethod
+    async def user_is_admin(
+        repository: AuthRepository,
+        user: User,
+        group_name: str = "admin" 
+    ) -> bool:
+        """
+        Check if the user is an admin.
+        """
+        return await repository.check_group(user, group_name)

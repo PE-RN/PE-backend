@@ -84,3 +84,17 @@ class AuthRepository:
                 if permission.name == permission_name:
                     return True
         return False
+
+    async def user_is_admin(self, user: models.User, group_name: str) -> bool:
+        query = (
+            select(models.User)
+            .options(selectinload(models.User.group))
+            .where(models.User.id == user.id)
+        )
+        result = await self.db.exec(query)
+        user_with_group = result.first()
+
+        if user_with_group and user_with_group.group:
+                if user_with_group.group.name == group_name:
+                    return True
+        return False
