@@ -123,6 +123,14 @@ async def login(
 
     return token
 
+@app.get("/check-token", response_model=Token)
+async def check_token(
+    user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[AuthController, Depends(AuthController.inject_controller)],
+    group_name: str = "admin"
+):
+    return await controller.user_is_admin(user=user, group_name=group_name)
+
 
 @app.post('/refresh-token', response_model=Token)
 async def refresh_token(
