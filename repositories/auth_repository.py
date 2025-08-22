@@ -85,7 +85,7 @@ class AuthRepository:
                     return True
         return False
 
-    async def user_is_admin(self, user: models.User, group_name: str) -> bool:
+    async def check_group(self, user: models.User, group_name: str) -> bool:
         query = (
             select(models.User)
             .options(selectinload(models.User.group))
