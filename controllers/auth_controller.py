@@ -345,7 +345,6 @@ class AuthController:
     ) -> bool:
         return await repository.check_permission(user, permission_name)
     
-    @staticmethod
     async def user_is_admin(
         self,
         user: User,
