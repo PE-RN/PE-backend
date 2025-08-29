@@ -123,7 +123,7 @@ async def login(
 
     return token
 
-@app.get("/check-token", response_model=Token)
+@app.get("/check-token", response_model=bool)
 async def check_token(
     user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
     controller: Annotated[AuthController, Depends(AuthController.inject_controller)],
