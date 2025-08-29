@@ -345,12 +345,13 @@ class AuthController:
     ) -> bool:
         return await repository.check_permission(user, permission_name)
     
+    @staticmethod
     async def user_is_admin(
-        self,
+        repository: AuthRepository,
         user: User,
         group_name: str = "admin" 
     ) -> bool:
         """
         Check if the user is an admin.
         """
-        return await self.repository.check_group(user, group_name)
+        return await repository.check_group(user, group_name)
