@@ -129,7 +129,8 @@ async def check_token(
     controller: Annotated[AuthController, Depends(AuthController.inject_controller)],
     group_name: str = "admin"
 ):
-    return await controller.user_is_admin(user=user, group_name=group_name)
+    is_admin_status = await controller.user_is_admin(user=user, group_name=group_name)
+    return {"is_admin": is_admin_status}
 
 
 @app.post('/refresh-token', response_model=Token)
