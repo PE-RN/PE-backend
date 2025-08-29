@@ -126,7 +126,7 @@ class AuthController:
 
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado!")
         
-        is_admin = await self.user_is_admin(repository=self.repository, user=user)
+        is_admin = await self.user_is_admin(user=user)
 
         return Token(access_token=self.generate_access_token(email), refresh_token=self.generate_refresh_token(email), is_admin=is_admin)
 
@@ -345,13 +345,12 @@ class AuthController:
     ) -> bool:
         return await repository.check_permission(user, permission_name)
     
-    @staticmethod
     async def user_is_admin(
-        repository: AuthRepository,
+        self,
         user: User,
-        group_name: str = "admin" 
+        group_name: str = "admin",
     ) -> bool:
         """
         Check if the user is an admin.
         """
-        return await repository.check_group(user, group_name)
+        return await self.repository.check_group(user, group_name)
