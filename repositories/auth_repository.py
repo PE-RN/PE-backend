@@ -4,7 +4,6 @@ from sqlalchemy.orm import selectinload
 
 from sql_app import models
 
-
 class AuthRepository:
 
     def __init__(self, db: AsyncSession):
@@ -95,6 +94,6 @@ class AuthRepository:
         user_with_group = result.first()
 
         if user_with_group and user_with_group.group:
-                if user_with_group.group.name == group_name:
-                    return True
+            if user_with_group.group.name == group_name:
+                return True
         return False

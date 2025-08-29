@@ -9,6 +9,7 @@ from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad, unpad
 
+from schemas import AdminStatusResponse
 import sentry_sdk
 from dotenv import load_dotenv, find_dotenv
 from fastapi import Body, Depends, FastAPI, status, Response, UploadFile, HTTPException, Form, Body, File
@@ -123,7 +124,7 @@ async def login(
 
     return token
 
-@app.get("/check-token", response_model=bool)
+@app.get("/check-token", response_model=AdminStatusResponse)
 async def check_token(
     user: Annotated[models.User, Depends(AuthController.get_user_from_token)],
     controller: Annotated[AuthController, Depends(AuthController.inject_controller)],
