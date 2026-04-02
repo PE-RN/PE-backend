@@ -10,7 +10,7 @@ from main import app
 
 
 @pytest.mark.anyio
-async def test_post_raster_accepts_authorization_from_form(async_client):
+async def test_post_raster_accepts_authorization_from_header(async_client):
 
     # Arrange
     controller = SimpleNamespace(upload_raster=AsyncMock(return_value={"table_name": "test_raster", "detail": "Raster importado com sucesso."}))
@@ -29,14 +29,14 @@ async def test_post_raster_accepts_authorization_from_form(async_client):
         # Act
         response = await async_client.post(
             "/raster/test_raster",
-            data={"authorization": "Bearer form-token"},
+            headers={"Authorization": "Bearer header-token"},
             files={"file": ("test_raster.tif", b"fake-geotiff", "image/tiff")},
         )
 
         # Assert
         assert response.status_code == 201
         assert response.json() == {"table_name": "test_raster", "detail": "Raster importado com sucesso."}
-        AuthController.get_user_from_token.assert_awaited_once_with(auth_repository, "Bearer form-token")
+        AuthController.get_user_from_token.assert_awaited_once_with(auth_repository, "Bearer header-token")
         AuthController.user_has_permission.assert_awaited_once()
         controller.upload_raster.assert_awaited_once()
     finally:

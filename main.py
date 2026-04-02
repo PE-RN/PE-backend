@@ -434,12 +434,11 @@ async def upload_geofile(
 async def post_raster(
     raster_name: str,
     file: Annotated[UploadFile, File(...)],
-    authorization: Annotated[str, Form(...)],
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
     controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)],
     auth_repository: Annotated[AuthRepository, Depends(AuthController.inject_repository)]
 ):
 
-    user = await AuthController.get_user_from_token(auth_repository, authorization)
     has_permission = await AuthController.user_has_permission("post_geofile", auth_repository, user)
 
     if not has_permission:
