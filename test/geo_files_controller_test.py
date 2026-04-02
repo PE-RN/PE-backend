@@ -1,9 +1,13 @@
 from unittest.mock import AsyncMock, MagicMock
+from io import BytesIO
+import os
+import tempfile
 
 import pytest
 from fastapi import status
 from fastapi.exceptions import HTTPException
 from fastapi.responses import StreamingResponse
+from starlette.datastructures import UploadFile
 
 from controllers.geo_files_controller import GeoFilesController
 
@@ -107,3 +111,22 @@ async def test_get_raster():
 
     # Assert
     assert type(raster_data) is type(raster_response)
+
+
+@pytest.mark.asyncio
+async def test_upload_raster_removes_temp_file_and_returns_repository_response():
+
+    # Arrange
+    fd, raster_path = tempfile.mkstemp(suffix=".tif")
+    repository = MagicMock()
+    repository.upload_raster = AsyncMock(return_value={"table_name": "wind_offshore", "detail": "Raster importado com sucesso."})
+    controller = GeoFilesController(repository=repository)
+    file = UploadFile(filename="wind_offshore.tif", file=BytesIO(b"fake-geotiff"))
+
+    # Act
+    result = await controller.upload_raster(fd, file, raster_path, "wind_offshore", 4674)
+
+    # Assert
+    assert result["table_name"] == "wind_offshore"
+    repository.upload_raster.assert_awaited_once_with(raster_path, "wind_offshore", 4674, False)
+    assert not os.path.exists(raster_path)

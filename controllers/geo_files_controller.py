@@ -74,17 +74,20 @@ class GeoFilesController:
         raster_path: str,
         table_name: str,
         srid: int
-    ) -> None:
+    ) -> dict:
 
         try:
             with os.fdopen(fd, "wb") as tmp:
-                tmp.write(await file.read())
+                while chunk := await file.read(1024 * 1024):
+                    tmp.write(chunk)
 
             return await self.repository.upload_raster(raster_path, table_name, srid, False)
 
+        except ValueError as error:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
         except Exception as error:
             capture_exception(error)
-            return HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error)
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(error))
 
         finally:
             if os.path.exists(raster_path):

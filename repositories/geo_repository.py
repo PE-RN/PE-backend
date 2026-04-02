@@ -1,11 +1,11 @@
+import asyncio
 import os
-import subprocess
 import tempfile
+from asyncio.subprocess import DEVNULL, PIPE
+import re
+from typing import TYPE_CHECKING
 
-import geopandas
 from os import getenv
-from osgeo import gdal
-from osgeo.gdal import Dataset
 from sqlalchemy import MetaData, Table, text
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -14,13 +14,34 @@ from schemas.geometry import Geometry
 from sql_app.models import Geodata, GeoJsonData
 from sqlmodel import select
 
+if TYPE_CHECKING:
+    import geopandas
+    from osgeo.gdal import Dataset
+
 
 class GeoRepository:
+
+    TABLE_NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    def upload_polygon(self, polygon: geopandas.GeoDataFrame, table_name: str, increment: bool = True, new_columns: list = None):
+    @classmethod
+    def normalize_table_name(cls, table_name: str) -> str:
+
+        normalized_table_name = table_name.strip().replace("-", "_").replace(" ", "_").lower()
+
+        if not normalized_table_name:
+            raise ValueError("Nome da tabela inválido.")
+
+        if not cls.TABLE_NAME_PATTERN.fullmatch(normalized_table_name):
+            raise ValueError("Nome da tabela inválido. Use apenas letras, números e underscore.")
+
+        return normalized_table_name
+
+    def upload_polygon(self, polygon: "geopandas.GeoDataFrame", table_name: str, increment: bool = True, new_columns: list = None):
+
+        import geopandas
 
         if new_columns:
             polygon = [{**element, **new_columns} for element in polygon]
@@ -35,8 +56,8 @@ class GeoRepository:
         table_name: str,
         srid: int,
         increment: bool = True,
-    ) -> None:
-        table_name = table_name.replace("-", "_")
+    ) -> dict:
+        table_name = self.normalize_table_name(table_name)
         # Drop the previous table if isnt to increment
         if not increment:
             drop_table_command = f"DROP TABLE IF EXISTS {table_name};"
@@ -44,14 +65,77 @@ class GeoRepository:
             await self.db.commit()
 
         database_url = getenv('SYNC_DATABASE_URL')
-        # Upload the raster - change the database
-        raster2pgsql_command = f"""
-            raster2pgsql -F -I -C -s {srid} -t 256x256 {raster_path} {table_name}  |
-            psql {database_url}
-        """
-        return await subprocess.run(raster2pgsql_command, shell=True)
+
+        if not database_url:
+            raise ValueError("SYNC_DATABASE_URL não está definida.")
+
+        with tempfile.NamedTemporaryFile(suffix=".sql", delete=False) as sql_file:
+            sql_file_path = sql_file.name
+        with tempfile.NamedTemporaryFile(suffix=".log", delete=False) as stdout_file:
+            stdout_file_path = stdout_file.name
+        with tempfile.NamedTemporaryFile(suffix=".log", delete=False) as stderr_file:
+            stderr_file_path = stderr_file.name
+
+        try:
+            raster2pgsql_stderr = b""
+            with open(sql_file_path, "wb") as sql_output:
+                raster2pgsql_process = await asyncio.create_subprocess_exec(
+                    "raster2pgsql",
+                    "-F",
+                    "-I",
+                    "-C",
+                    "-s",
+                    str(srid),
+                    "-t",
+                    "256x256",
+                    raster_path,
+                    table_name,
+                    stdout=sql_output,
+                    stderr=PIPE,
+                )
+                _, raster2pgsql_stderr = await raster2pgsql_process.communicate()
+
+            if raster2pgsql_process.returncode != 0:
+                raise RuntimeError(raster2pgsql_stderr.decode().strip() or "Falha ao gerar o SQL do raster.")
+
+            with open(stdout_file_path, "wb") as stdout_output, open(stderr_file_path, "wb") as stderr_output:
+                psql_process = await asyncio.create_subprocess_exec(
+                    "psql",
+                    "-q",
+                    "-d",
+                    database_url,
+                    "-f",
+                    sql_file_path,
+                    stdout=stdout_output,
+                    stderr=stderr_output,
+                    stdin=DEVNULL,
+                )
+                await psql_process.wait()
+
+            with open(stdout_file_path, "r", encoding="utf-8", errors="ignore") as stdout_input:
+                psql_stdout = stdout_input.read().strip()
+            with open(stderr_file_path, "r", encoding="utf-8", errors="ignore") as stderr_input:
+                psql_stderr = stderr_input.read().strip()
+
+            if psql_process.returncode != 0:
+                raise RuntimeError(psql_stderr or psql_stdout or "Falha ao importar o raster.")
+
+            return {
+                "table_name": table_name,
+                "detail": "Raster importado com sucesso.",
+                "output": psql_stdout,
+            }
+        finally:
+            if os.path.exists(sql_file_path):
+                os.unlink(sql_file_path)
+            if os.path.exists(stdout_file_path):
+                os.unlink(stdout_file_path)
+            if os.path.exists(stderr_file_path):
+                os.unlink(stderr_file_path)
 
     async def get_polygon_by_name(self, table_name) -> GeoJSON:
+
+        import geopandas
 
         polygon = geopandas.read_postgis(f'select * from {table_name}', geom_col='geometry', con=self.db.bind)
         return polygon.to_json()
@@ -80,7 +164,9 @@ class GeoRepository:
         data = await self.db.exec(query)
         return data.first()
 
-    async def get_raster_dataset(self, table_name) -> Dataset | None:
+    async def get_raster_dataset(self, table_name) -> "Dataset | None":
+
+        from osgeo import gdal
 
         sql_query = "set postgis.gdal_enabled_drivers = 'ENABLE_ALL';"
         await self.db.execute(text(sql_query))

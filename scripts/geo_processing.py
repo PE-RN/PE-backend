@@ -1,14 +1,18 @@
 import json
+from typing import TYPE_CHECKING
 
 import numpy as np
 from asyncer import asyncify
-from osgeo import gdal, ogr, osr
-from osgeo.gdal import Dataset
 
 from schemas.feature import Feature
 
+if TYPE_CHECKING:
+    from osgeo.gdal import Dataset
 
-async def clip_and_get_pixel_values(feature: Feature, src_ds: Dataset, raster_name: str):
+
+async def clip_and_get_pixel_values(feature: Feature, src_ds: "Dataset", raster_name: str):
+
+    from osgeo import gdal, ogr, osr
 
     if not src_ds:
         raise RuntimeError("Could not open source dataset")

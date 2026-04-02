@@ -1,8 +1,11 @@
-from osgeo.gdal import Dataset
 import numpy as np
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from osgeo.gdal import Dataset
 
 
-async def read_raster_as_json(ds: Dataset):
+async def read_raster_as_json(ds: "Dataset"):
 
     if not ds:
         raise FileNotFoundError("Failed to open file")
