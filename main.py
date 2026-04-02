@@ -28,7 +28,6 @@ from controllers.process_controller import ProcessController
 from controllers.user_controller import UserController
 from controllers.media_controller import MediaController
 from controllers.layers_controller import LayersController
-from repositories.auth_repository import AuthRepository
 from schemas.AdminStatusResponse import AdminStatusResponse
 from schemas.layers import LayerGroupCreate, LayerCreate
 from schemas.feature import Feature
@@ -436,10 +435,8 @@ async def post_raster(
     file: Annotated[UploadFile, File(...)],
     user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
     controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)],
-    auth_repository: Annotated[AuthRepository, Depends(AuthController.inject_repository)]
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("post_geofile"))]
 ):
-
-    has_permission = await AuthController.user_has_permission("post_geofile", auth_repository, user)
 
     if not has_permission:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
