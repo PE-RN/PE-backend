@@ -1,4 +1,5 @@
 import os
+import shutil
 import tempfile
 from contextlib import asynccontextmanager
 from typing import Annotated, List
@@ -11,7 +12,7 @@ from Crypto.Util.Padding import pad, unpad
 
 import sentry_sdk
 from dotenv import load_dotenv, find_dotenv
-from fastapi import Body, Depends, FastAPI, status, Response, UploadFile, HTTPException, Form, Body, File
+from fastapi import Body, Depends, BackgroundTasks, FastAPI, status, Response, UploadFile, HTTPException, Form, Body, File, Query, Path as PathParam
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -20,6 +21,8 @@ from typing import Union
 from pathlib import Path
 from typing import Optional, Annotated
 import json
+from datetime import datetime, time, date
+import pandas as pd
 
 from controllers.auth_controller import AuthController
 from controllers.feedback_controller import FeedbackController
@@ -28,17 +31,20 @@ from controllers.process_controller import ProcessController
 from controllers.user_controller import UserController
 from controllers.media_controller import MediaController
 from controllers.layers_controller import LayersController
+from controllers.platform_wind import PlatformService
 from schemas.AdminStatusResponse import AdminStatusResponse
 from schemas.layers import LayerGroupCreate, LayerCreate
 from schemas.feature import Feature
 from schemas.featureCollection import FeatureCollection
 from schemas.feedback import FeedbackCreate
+from schemas.platform_wind import CreatePlatform
 from schemas.token import Token
 from schemas.user import UserCreate, UserUpdate
 from schemas.media import MediaCreate, MediaUpdate
 from sql_app import models
 from sql_app.database import init_db
 from enums.ocupation_enum import OcupationEnum
+from enums.platform_enum import WindRoseMode, FieldsQualifiedData
 
 
 @asynccontextmanager
@@ -791,3 +797,230 @@ async def get_layer_id(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
     return await controller.get_layer_by_id(id)
+
+@app.post('/platform', response_model=models.Platform, status_code=status.HTTP_201_CREATED)
+async def create_platform(
+    createPlatform: CreatePlatform, 
+    user: models.User | models.AnonymousUser = Depends(AuthController.get_user_from_token),
+    has_permission: bool = Depends(AuthController.get_permission_dependency("layer_admin")),
+    controller: PlatformService = Depends(PlatformService.inject_service)):
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+    try:
+        platform: models.Platform = await controller.create_platform(createPlatform)
+        return platform
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+
+@app.get('/platform', response_model=list[models.Platform])
+async def list_platform(
+    user: models.User | models.AnonymousUser = Depends(AuthController.get_user_from_token),
+    has_permission: bool = Depends(AuthController.get_permission_dependency("layer_admin")),
+    controller: PlatformService = Depends(PlatformService.inject_service)
+):
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    try:
+        platform = await controller.list_platforms()
+        return platform
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))# NÃO LOCALIZADO
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))# DADO INVÁLIDO
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))# Erro desconhecido
+
+@app.get('/platform/{id}/heights', summary="Lista de alturas para uma plataforma",     description="""
+Retorna a lista de alturas disponíveis para uma plataforma dentro de um intervalo de datas.
+
+- `start_datetime`: data/hora inicial da consulta
+- `end_datetime`: data/hora final da consulta
+
+Caso as datas não sejam informadas, serão utilizados os dados do último mês salvo.
+""" 
+)
+async def getHeightsInPlatform(
+    id: UUID = PathParam(..., description="Identificador da plataforma"),
+    start_datetime: datetime|None = Query(None, description="Data/hora inicial", example="2026-01-10T00:00:00"),
+    end_datetime: datetime|None = Query(None, description="Data/hora final", example="2026-01-10T23:50:00"), 
+    user: models.User | models.AnonymousUser = Depends(AuthController.get_user_from_token),
+    has_permission: bool = Depends(AuthController.get_permission_dependency("layer_admin")),
+    controller: PlatformService = Depends(PlatformService.inject_service)
+):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    try:
+        heights = await controller.heightsInPlatform(id, start_datetime, end_datetime )
+        return heights
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))# NÃO LOCALIZADO
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))# DADO INVÁLIDO
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))# Erro desconhecido
+    
+@app.post("/qualified_data/{id}", summary="Salvar dados mensais de uma plataforma", description=
+"""
+Recebe um arquivo CSV contendo os dados qualificados da plataforma para processamento.
+
+Regras do arquivo:
+- O CSV deve utilizar `;` como separador de colunas.
+- O separador `,` é utilizado para valores decimais.
+- A função realiza automaticamente a conversão dos valores numéricos.
+
+Processamento:
+- Os dados enviados são processados em segundo plano.
+- Os registros são consolidados e salvos em média horária.
+
+Retorno:
+- A API retorna imediatamente o status de processamento do arquivo.
+""" 
+)
+async def upload_qualified_data(
+    background_tasks: BackgroundTasks,
+    id: UUID = PathParam(..., description="Identificador da plataforma"),
+    file: UploadFile = File(...),
+    user: models.User | models.AnonymousUser = Depends(AuthController.get_user_from_token),
+    has_permission: bool = Depends(AuthController.get_permission_dependency("layer_admin")), 
+    controller: PlatformService = Depends(PlatformService.inject_service)
+):
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    if not file.filename.lower().endswith('.csv'):
+        raise HTTPException( status_code=status.HTTP_400_BAD_REQUEST, detail="Somente arquivos .csv são aceitos.")
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
+        shutil.copyfileobj(file.file, tmp)
+        tmp_path = tmp.name
+    try:
+        df = pd.read_csv(tmp_path, header=0, sep=";", )
+        await controller.validate_qualified_data_columns(df.head())
+
+        # asyncio.create_task(controller.create_qualified_data_month(tmp_path, id))
+        background_tasks.add_task( controller.create_qualified_data_month, tmp_path, id) #Teste local
+        return JSONResponse( status_code=status.HTTP_202_ACCEPTED, content={"status": "processando", "message": f"O arquivo '{file.filename}' foi recebido e está sendo processado em segundo plano."})
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))# DADO INVÁLIDO
+
+@app.delete("/qualified_data/{id}" ,  summary="Deleta os dados qualificados de uma plataforma entre duas datas e horários.")
+async def delete_qualified_data(
+    id: UUID = PathParam(..., description="Identificador da plataforma"),
+    start_datetime: datetime = Query(..., description="Data/hora inicial", example="2026-01-10T00:00:00"),
+    end_datetime: datetime = Query(..., description="Data/hora final", example="2026-01-01T23:50:00"),
+    user: models.User | models.AnonymousUser = Depends(AuthController.get_user_from_token),
+    has_permission: bool = Depends(AuthController.get_permission_dependency("layer_admin")),
+    controller: PlatformService = Depends(PlatformService.inject_service)
+):
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+    try:
+        await controller.delete_qualified_data_between_datetimes(id, start_datetime, end_datetime)
+        return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content={"status": "success", "message": "Dados qualificados deletados com sucesso."})
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))# NÃO LOCALIZADO
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))# DADO INVÁLIDO
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))# Erro desconhecido
+
+
+
+@app.get("/time-series/platform/{id}" ,  summary="Série temporal de um campo de uma estação entre duas datas e horários.")
+async def time_series_list_data_by_field_between_datetimes(
+    id: UUID = PathParam(..., description="Identificador da plataforma"),
+    field_name: FieldsQualifiedData = Query(..., description="Nome do campo" ),
+    start_datetime: datetime| None = Query(None, description="Data/hora inicial", example="2026-01-10T00:00:00"),
+    end_datetime: datetime|None = Query(None, description="Data/hora final", example="2026-01-10T23:50:00"),
+    user: models.User | models.AnonymousUser = Depends(AuthController.get_user_from_token),
+    has_permission: bool = Depends(AuthController.get_permission_dependency("layer_admin")),
+    controller: PlatformService = Depends(PlatformService.inject_service)
+):
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+    try:
+        data = await controller.graphics_time_series_data_by_plataform(id, field_name, start_datetime, end_datetime)
+        return data
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))# NÃO LOCALIZADO
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))# DADO INVÁLIDO
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))# Erro desconhecido
+    
+@app.get("/wind-rose/platform/{id}" ,  summary="Rosa dos ventos com base nos dados de uma plataforma entre duas datas e horários.")
+async def wind_rose_data_between_datetimes(
+    id: UUID = PathParam(..., description="Identificador da plataforma"),
+    start_datetime: datetime|None = Query(None, description="Data/hora inicial", example="2026-01-10T00:00:00"),
+    end_datetime: datetime|None = Query(None, description="Data/hora final", example="2026-01-10T23:50:00"),
+    mode: WindRoseMode = Query( WindRoseMode.mean_h_spd, description="Modo de cálculo da rosa dos ventos"),
+    height: int|None = Query(None, description="Altura",ge=1, example=210),
+    user: models.User | models.AnonymousUser = Depends(AuthController.get_user_from_token),
+    has_permission: bool = Depends(AuthController.get_permission_dependency("layer_admin")),
+    controller: PlatformService = Depends(PlatformService.inject_service)
+):
+    
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+    try:
+        return await controller.last_month_and_x_heights_wind_rose(id, mode, start_datetime, end_datetime, height)
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))# NÃO LOCALIZADO
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))# DADO INVÁLIDO
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))# Erro desconhecido
+
+@app.get("/vertical-profile/platform/{id}" ,  summary="Perfil vertical da velocidade horizontal do vento em uma plataforma.")
+async def vertical_profile_data_between_datetimes(
+    id: UUID = PathParam(..., description="Identificador da plataforma"),
+    start_datetime: datetime|None = Query(None, description="Data/hora inicial", example="2026-01-10T00:00:00"),
+    end_datetime: datetime|None = Query(None, description="Data/hora final", example="2026-01-10T23:50:00"),
+    user: models.User | models.AnonymousUser = Depends(AuthController.get_user_from_token),
+    has_permission: bool = Depends(AuthController.get_permission_dependency("layer_admin")),
+    controller: PlatformService = Depends(PlatformService.inject_service)
+):
+    
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+    try:
+        return  await controller.average_vertical_profile( id, start_datetime, end_datetime)
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))# NÃO LOCALIZADO
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))# DADO INVÁLIDO
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))# Erro desconhecido
+    
+# @app.get("/wind-rose/platform/{platform_id}" 
+@app.get("/diurnal-profile/platform/{id}" ,  summary="Perfil diurno de um campo específico de uma plataforma entre duas datas.")
+async def diurnal_profile_by_field_(
+    id: UUID = PathParam(..., description="Identificador da plataforma"),
+    field_name: FieldsQualifiedData = Query(..., description="Nome do campo" ),
+    start_datetime: datetime|None = Query(None, description="Data/hora inicial", example="2026-01-10T00:00:00"),
+    end_datetime: datetime|None = Query(None, description="Data/hora final", example="2026-01-10T23:50:00"),
+    user: models.User | models.AnonymousUser = Depends(AuthController.get_user_from_token),
+    has_permission: bool = Depends(AuthController.get_permission_dependency("layer_admin")),
+    controller: PlatformService = Depends(PlatformService.inject_service)
+):
+
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+    try:
+        return  await controller.average_diurnal_cycle(id, field_name, start_datetime, end_datetime)
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))# NÃO LOCALIZADO
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))# DADO INVÁLIDO
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))# Erro desconhecido
