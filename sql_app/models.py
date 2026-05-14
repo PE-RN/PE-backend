@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 
 from typing import List, Optional
 import sqlalchemy.dialects.postgresql as pg
-from sqlmodel import Column, Field, SQLModel, Relationship
+from sqlmodel import Column, Field, SQLModel, Relationship, UniqueConstraint
 
 
 class LayerGroups(SQLModel, table=True):
@@ -294,3 +294,30 @@ class GeoJsonData(SQLModel, table=True):
     )
     name: str
     data: dict = Field(sa_column=Column(pg.JSON))
+
+
+class Platform(SQLModel, table=True):
+    __tablename__ = 'platform'
+    id: UUID = Field( sa_column=Column(pg.UUID, primary_key=True, unique=True, default=uuid4))
+    name: str = Field(index=True, unique=True, nullable=False)
+    sensor_height: float| None = Field() # Altura do sensor em metros
+    
+    qualified_data: list["QualifiedData"] = Relationship(back_populates="platform")
+
+
+class QualifiedData(SQLModel, table=True):
+    __tablename__ = 'qualified_data'
+    id: UUID = Field( sa_column=Column(pg.UUID, primary_key=True, unique=True, default=uuid4) )# id: int | None = Field(default=None, primary_key=True)
+    dt: datetime = Field(index=True) #Time and Date
+    m_temp  : float =  Field()  # Met Air Temperature  # Temperatura do ar
+    m_pres : float =  Field()  # Met Pressure # Pressão
+    m_wspd: float =  Field() # Met Wind Speed # Velocidade do vento
+    m_wdir: float =  Field()#Met Wind Direction # Direção do Vento
+    height: int =  Field(index=True)  # Height (m) #ALTURA em M
+    h_spd: float =  Field(index=True) # Horizontal Wind Speed #Velocidade média do Vento Horizontal
+    ti : float =  Field() # Turbulence Intensity # Intensidade da turbulência
+    wdir: float =  Field(index=True)# Wind Direction # Direção do Vento
+
+    plat_id: UUID = Field(foreign_key="platform.id", index=True, nullable=False)
+    __table_args__ = ( UniqueConstraint("dt", "plat_id", "height", name="uq_qualified_data_datetime_plat_id_height"), )
+    platform: Platform = Relationship(back_populates="qualified_data")
