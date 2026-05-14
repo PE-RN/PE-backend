@@ -59,10 +59,11 @@ class GeoRepository:
     ) -> dict:
         table_name = self.normalize_table_name(table_name)
         # Drop the previous table if isnt to increment
-        if not increment:
-            drop_table_command = f"DROP TABLE IF EXISTS {table_name};"
-            await self.db.exec(text(drop_table_command))
-            await self.db.commit()
+        
+        # if not increment:
+        #     drop_table_command = f"DROP TABLE IF EXISTS {table_name};"
+        #     await self.db.exec(text(drop_table_command))
+        #     await self.db.commit()
 
         database_url = getenv('SYNC_DATABASE_URL')
 
