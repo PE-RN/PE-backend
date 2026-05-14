@@ -1,10 +1,3 @@
-"""add sensor_height in platform
-
-Revision ID: 80ddb63ecc01
-Revises: b630dcf00361
-Create Date: 2026-05-06 10:20:16.942375
-
-"""
 from typing import Sequence, Union
 
 from alembic import op

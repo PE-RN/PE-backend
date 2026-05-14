@@ -11,7 +11,6 @@ from sql_app.database import get_db
 from sql_app.models import Platform, QualifiedData
 import pandas as pd
 from uuid import UUID
-from scipy.stats import weibull_min
 from scipy.optimize import curve_fit
 import re
 
@@ -40,7 +39,7 @@ class PlatformService:
         print("Injetando serviço UserService...")
         return PlatformService(repository=repository)
     
-    #Plataforma
+
     async def create_platform(self, createPlatform):
         try:
             platform_dict = createPlatform.model_dump()
@@ -68,7 +67,8 @@ class PlatformService:
             raise
         except Exception as e:
             raise RuntimeError(f"Erro ao listar Plataforma: {str(e)}")
-    
+
+
     async def list_platforms(self):
         try:
             platforms = await self.repo.list_all_platforms()
@@ -77,7 +77,8 @@ class PlatformService:
             raise
         except Exception as e:
             raise RuntimeError(f"Erro ao listar Plataformas: {str(e)}")
-    
+
+
     async def validate_qualified_data_columns(self, df):
         required_columns = [
             "Time and Date",
@@ -100,43 +101,30 @@ class PlatformService:
         has_ti = False
 
         for col in df.columns:
-
             if re.fullmatch(r"Wind Direction \(deg\) at \d+m", col):
                 has_wdir = True
-
             elif re.fullmatch(r"Horizontal Wind Speed \(m/s\) at \d+m", col):
                 has_hspd = True
-
             elif re.fullmatch(r"TI at \d+m", col):
                 has_ti = True
 
         if not has_wdir:
-            missing_columns.append(
-                "Wind Direction (deg) at Xm"
-            )
+            missing_columns.append("Wind Direction (deg) at Xm")
 
         if not has_hspd:
-            missing_columns.append(
-                "Horizontal Wind Speed (m/s) at Xm"
-            )
+            missing_columns.append("Horizontal Wind Speed (m/s) at Xm")
 
         if not has_ti:
-            missing_columns.append(
-                "TI at Xm"
-            )
+            missing_columns.append("TI at Xm")
         
         if missing_columns:
-            
-            raise ValueError(
-                f"As seguintes colunas estão ausentes: {missing_columns}"
-            )
+            raise ValueError(f"As seguintes colunas estão ausentes: {missing_columns}")
 
 
     async def create_qualified_data_month(self, file_path: str, platform_id: UUID):
         try:
             platform = await self.getPlatform(id=platform_id)
             df = pd.read_csv(file_path, header=0, sep=";", )
-            
             await self.save_qualified_data_to_db(df, platform, file_path)
         except Exception as e:
             logger.warning(f"Erro ao salvos dados mensais de uma plataforma: {str(e)}")
@@ -150,11 +138,7 @@ class PlatformService:
             return
 
 
-
-
-
     async def save_qualified_data_to_db(self, df, platform, path_file):
-        # print(f"Save file: {file_path_list}")
         id_platform = platform["id"]
         sensor_height = int(platform["sensor_height"])
         try:
@@ -208,6 +192,7 @@ class PlatformService:
         except Exception as e:
             logger.warning(f"[IMPORT][ERROR] {platform['name']}: Falha ao salvar o arquivo {path_file}. {e}.")
 
+
     async def create_qualified_data_list(self, list_data: list[dict]):
         try:
             await self.repo.insert_batch_qualified_data(list_data)
@@ -217,11 +202,9 @@ class PlatformService:
             raise RuntimeError(f"Erro ao criar Dados Brutos por lista: {str(e)}")
 
 
-
     async def graphics_time_series_data_by_plataform(self, platform_id, field_name, start_search_date, end_search_date):
         try:
             start_search_date, end_search_date = await self.valide_date_and_create_datetime(platform_id, start_search_date, end_search_date)
-            
             self.verifyFieldNameExistsInDataModel(QualifiedData, field_name)
             platform : Platform = await self.getPlatform(id=platform_id)
 
@@ -235,18 +218,15 @@ class PlatformService:
                     data_dict = {}
                     data_dict[f"x"] = height['dt']
                     data_dict[f"y"] = height[f'{field_name}'] if height[f'{field_name}'] != "NaN" else None
-
                     list_values_by_height.append(data_dict)
 
-                formatted.append(
-                    {
+                formatted.append({
                         "id": f"{row.height}m" ,
-                        "data": list_values_by_height
-                    }
+                        "data": list_values_by_height}
                 )
 
                 if field_name in fields_without_height_level_dict.keys():
-                    formatted[0]["id"] =  fields_without_height_level_dict[field_name]
+                    formatted[0]["id"] =  fields_without_height_level_dict[field_name] #Sem alturas
                     break
             
             return {"timeSeries": formatted}
@@ -255,8 +235,8 @@ class PlatformService:
         except ValueError as e:
             raise
         except Exception as e:
-            # Erros inesperados
-            raise Exception(f"Erro ao listar dados por plataformas: {str(e)}")
+            raise Exception(f"Erro ao gerar série temporal: {str(e)}")
+
 
     def verifyFieldNameExistsInDataModel(self, DataModel, field_name: str):
         if field_name == "plat_id" or field_name == "id" or field_name == "dt" :
@@ -264,16 +244,13 @@ class PlatformService:
         if not hasattr(DataModel, field_name):
             raise LookupError(f"O campo '{field_name}' não existe.")
         
+
     def fist_and_laster_data_month(self, date_time):
         fist_day_datetime = date_time.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         
         last_day = calendar.monthrange(date_time.year, date_time.month)[1]
         last_day_datetime = date_time.replace(
-            day=last_day,
-            hour=23,
-            minute=59,
-            second=59,
-            microsecond=999999
+            day=last_day, hour=23, minute=59, second=59, microsecond=999999
         ) 
         return fist_day_datetime, last_day_datetime
 
@@ -287,8 +264,6 @@ class PlatformService:
             raise ValueError("Modo de cálculo da rosa dos ventos inválido. Use 'mean_h_spd' ou 'mean_ti'.")
 
         start_search_date, end_search_date = await self.valide_date_and_create_datetime(platform_id, start_search_date, end_search_date)
-
-    
         platform:Platform = await self.getPlatform(id=platform_id)
         heights = await self.repo.getHeightByPlatform(platform, start_search_date, end_search_date)
         if height is None:
@@ -305,8 +280,8 @@ class PlatformService:
         for height in heights:
             data = await self.graphics_wind_rose_data_mean_field_by_platform(platform_id, field_name, start_search_date, end_search_date, height)
             wind_rose_data.append(data)
-
         return wind_rose_data
+
 
     async def graphics_wind_rose_data_mean_field_by_platform(self, platform_id, field_name, start_search_date, end_search_date, height):
         try:
@@ -322,43 +297,31 @@ class PlatformService:
             wdir = wdir[mask] #Onde é falso é removido
             values = values[mask]
 
-            # Garante que wdir está no intervalo [0, 360)
-            wdir = np.mod(wdir, 360)#Se tiver negativo ou maior que 360 é feita conversão
-
-            # Calcula o bin (0-11), cada bin = 30 graus
-            # 0-29 -> 0, 30-59 -> 1, ..., 330-359 -> 11 usando o modulo
-            bins = (wdir // 15).astype(int)
+            wdir = np.mod(wdir, 360)
+            bins = (wdir // 15).astype(int) #Calcula o bin (0-11), cada bin = 30 graus, usando o mod
             
-            # Remover os bins que não estiverem no intervalo de 0 a 11
-            bins = np.clip(bins, 0, 23)
-            # Soma os valores agrupados por índice.
-            sum_per_bin = np.bincount(bins, weights=values, minlength=24)
-            # Conta as ocorencias dos bins (conta a quantidade por bin)
-            count_per_bin = np.bincount(bins, minlength=24)
+            bins = np.clip(bins, 0, 23) # Remover os bins que não estiverem no intervalo de 0 a 11
+            sum_per_bin = np.bincount(bins, weights=values, minlength=24) # Soma os valores agrupados por índice.
+            
+            count_per_bin = np.bincount(bins, minlength=24) # Conta as ocorencias dos bins (conta a quantidade por bin)
             formatted = []
             total_count = int(np.sum(count_per_bin)) if count_per_bin.size > 0 else 0
 
-            # Média do primeiro Bin (345 a 15, Norte)
+            
             if (count_per_bin[0] + count_per_bin[23]) > 0:
-                avg = (sum_per_bin[0]+sum_per_bin[23]) /  (count_per_bin[0] + count_per_bin[23])
-                # perc = (count_per_bin[0] + count_per_bin[23]) / total_count * 100 if total_count > 0 else 0
+                avg = (sum_per_bin[0]+sum_per_bin[23]) /  (count_per_bin[0] + count_per_bin[23]) # 1 Bin (345 a 15, Norte)
             else:
                 avg = 0
-                # perc = 0
             formatted.append({ "Direcao": 0, "avg": avg})
 
-            # Demais bins, de 2 em 2, pois as faixas sao de 15 em 15, (excluido o primeiro e o ultimo, que é o primeiro bin  ).
             for i in range(1, 23, 2):
-                direction = (i * 15) +15#Centralizar direção
+                direction = (i * 15) +15 #Centralizar direção
                 if (count_per_bin[i] + count_per_bin[i+1]) > 0:
                     avg = (sum_per_bin[i]+sum_per_bin[i+1]) /  (count_per_bin[i] + count_per_bin[i+1])
-                    # perc = (count_per_bin[i] + count_per_bin[i+1]) / total_count * 100 if total_count > 0 else 0
                 else:
-                    avg = 0# Tratar a contagem o Zerada
-                    # perc = 0 
+                    avg = 0
 
                 formatted.append({ "Direcao": direction, "avg": float(avg) })
-
             return {"height": height, "windRose": formatted}
         except LookupError as e:
             raise 
@@ -366,7 +329,8 @@ class PlatformService:
             raise
         except Exception as e:
             raise Exception(f"Erro ao gerar rosa dos ventos: {str(e)}")
-    
+
+
     async def heightsInPlatform(self, platform_id, start_search_date=None, end_search_date=None):
         try:
             if start_search_date is None and end_search_date is None:
@@ -382,13 +346,10 @@ class PlatformService:
             heights_platform = await self.repo.getHeightByPlatform(platform, start_search_date, end_search_date)
             return {"available_heights": heights_platform}
         except LookupError as e:
-            # NÃO LOCALIZADO
             raise 
         except ValueError as e:
-            # DADO INVÁLIDO
             raise
         except Exception as e:
-            # Erros inesperados
             raise Exception(f"Erro ao listar as alturas em uma plataforma: {str(e)}")
 
 
@@ -411,18 +372,12 @@ class PlatformService:
             def power_law_exponent(z, beta, alpha):
                 return beta * z**alpha
 
-            # Ajuste
-            #Utilize o método dos mínimos quadrados não lineares para ajustar uma função, f, aos dados.
             params, covariance = curve_fit(power_law_exponent, heights_measured, w_speeds_measured )# Devolve os parametros beta e alpha ajustados em "params"
             beta, alpha = params #separar paremetros
-            # print("Alpha =", alpha) #expoente do perfil
-            # print("Beta =", beta) #constante do modelo
 
-            # Curva contínua
             h_continuous = np.arange(1, 251, 1)#Tentar comecar em 0
             w_speeds_profile_power_law = power_law_exponent(h_continuous , beta, alpha)#Previsoes das alturas de 1 a 250
 
-            # Valores previstos nas alturas existentes
             w_speeds_predicted_power_law  = power_law_exponent(heights_measured, beta, alpha)
 
             n = len(w_speeds_measured )
@@ -430,47 +385,18 @@ class PlatformService:
             # -------- Erros --------
             rmse_power_law, bias_power_law, r2_power_law = calculate_rmse_bias_r2(w_speeds_predicted_power_law, w_speeds_measured)
             
-            # print("RMSE =", rmse_power_law)#Erro médio do modelo  (~X proximo do valor real)
-            # print("BIAS =", bias_power_law)# Se positivo → modelo superestima; Se negativo → modelo subestima; Se próximo de zero → sem tendência sistemática
-            # import matplotlib.pyplot as plt
-            # plt.figure()
-            # plt.plot(w_speeds_profile_power_law, h_continuous )#Linha
-            # plt.scatter(w_speeds_measured , heights_measured, color='red')  # pontos medidos
-            # plt.xlabel("Velocidade (m/s)")
-            # plt.ylabel("Altura (m)")
-            # plt.title(f"Power Law Exponent\nPerfil vertical ajustado RMSE={rmse_power_law:.4f} BIAS={bias_power_law:.4f}")#Lei Logarítmica ou Regressão linear
-            # plt.grid()
-            # plt.savefig( "perfil_vertical_power_law.png", dpi=150, bbox_inches="tight")# plt.show()
-            
-
-            # Transformação logarítmica
             log_heights = np.log(heights_measured)
             log_h_continuous = np.log(h_continuous)
             # Modelo linear: U = m * ln(z) + b
             def log_linear_model(log_z, slope, intercept):
                 return slope * log_z + intercept
 
-            # Ajuste por mínimos quadrados
             params, covariance = curve_fit(log_linear_model, log_heights, w_speeds_measured)
             slope, intercept = params
-            # print("Slope =", slope)
-            # print("Intercept =", intercept)
-            # Cálculo da rugosidade superficial (z0)
             z0 = np.exp(-intercept / slope)
-            # print("z0 =", z0, "m")
-            # Valores previstos nas alturas medidas
             w_speeds_predicted_surf_rough = log_linear_model(log_heights, slope, intercept)
             w_speeds_profile_surf_rough = log_linear_model(log_h_continuous, slope, intercept)
             rmse_surf_rough, bias_surf_rough, r2_surf_rough = calculate_rmse_bias_r2(w_speeds_predicted_surf_rough, w_speeds_measured)
-
-            # plt.figure()
-            # plt.plot(w_speeds_profile_surf_rough, h_continuous )#Linha
-            # plt.scatter(w_speeds_measured , heights_measured, color='red')  # pontos medidos
-            # plt.xlabel("Velocidade (m/s)")
-            # plt.ylabel("Altura (m)")
-            # plt.title(f"Surface Roughness\nPerfil vertical ajustado RMSE={rmse_surf_rough:.4f} BIAS={bias_surf_rough:.4f}")#Lei Logarítmica ou Regressão linear
-            # plt.grid()
-            # plt.savefig( "perfil_vertical_surface_roughness.png", dpi=150, bbox_inches="tight")# plt.show()
 
             observations = [ { "x": int(h), "y":float(v)} for h, v in raw_data[number_heights:] ]
             curve_continuous_profile_power_law = [
@@ -479,7 +405,7 @@ class PlatformService:
             curve_continuous_profile_surf_rough = [
                 {"x": 0, "y": 0}] + [ 
                 { "x": int(h), "y":float(v)} for h, v in zip(h_continuous , w_speeds_profile_surf_rough) ]
-             
+
             return { 
                 "observations" : observations,
                 "models_fit" : [
@@ -499,12 +425,13 @@ class PlatformService:
                     }
                 ]
             } 
-        except LookupError as e:# NÃO LOCALIZADO
+        except LookupError as e:
             raise 
-        except ValueError as e:# DADO INVÁLIDO
+        except ValueError as e:
             raise
-        except Exception as e:# Erros inesperados
+        except Exception as e:
             raise Exception(f"Erro ao calcular Perfil vertical: {str(e)}")
+
 
     async def average_diurnal_cycle(self, platform_id, field_name, start_datetime, end_datetime, number_heights:int=3):
             try:
@@ -540,68 +467,59 @@ class PlatformService:
                     items[0]["id"] =  fields_without_height_level_dict[field_name]
                     items = items[0]
                 return { "diurnalProfile" : items }
-            except LookupError as e:# NÃO LOCALIZADO
+            except LookupError as e:
                 raise 
-            except ValueError as e:# DADO INVÁLIDO
+            except ValueError as e:
                 raise
-            except Exception as e:# Erros inesperados
+            except Exception as e:
                 raise Exception(f"Erro ao calcular Perfil diurno: {str(e)}")
-            
+
+
     async def delete_qualified_data_between_datetimes(self, platform_id, start_datetime, end_datetime):
         try:
             platform:Platform = await self.getPlatform(id=platform_id)
             await self.repo.delete_qualified_data_between_datetimes(platform, start_datetime, end_datetime)
-        except LookupError as e:# NÃO LOCALIZADO
+        except LookupError as e:
             raise 
-        except ValueError as e:# DADO INVÁLIDO
+        except ValueError as e:
             raise
-        except Exception as e:# Erros inesperados
+        except Exception as e:
             raise Exception(f"Erro ao excluir dados entre datas: {str(e)}")
-        
+
+
     async def valide_date_and_create_datetime(self, platform_id, start_datetime = None, end_datetime = None):
         if start_datetime is None and end_datetime is None:
             last_date = await self.repo.get_last_date(platform_id)
             if not last_date:
                 raise LookupError("Nenhuma dado encontrado para a plataforma.")
-            # Calcular o intervalo de datas para o último mês
             start_datetime, end_datetime = self.fist_and_laster_data_month(last_date)
         elif start_datetime is not None and end_datetime is not None:
             if start_datetime > end_datetime:
                 raise ValueError("A data de início deve ser anterior à data de término.")
         return start_datetime, end_datetime
-            
-#Inserir funções no service para salvar os dados
+
+
 def get_height_in_df_by_columns(df: pd.DataFrame):
     heights = []
     for col in df.columns:
         if "Wind Direction (deg) at" in col or "Horizontal Wind Speed (m/s) at" in col:
-            # print("col")
-            # print(col)
             num = int("".join(filter(str.isdigit, col)))
             if num not in heights:
                 heights.append(num)
     return heights
 
 
-
-
 def mean_wind_direction(series):
     rad = np.deg2rad(series.dropna())
-
     sin_mean = np.mean(np.sin(rad))
     cos_mean = np.mean(np.cos(rad))
-
     angle = np.arctan2(sin_mean, cos_mean)
-
     deg = np.rad2deg(angle)
-
-    # garantir entre 0 e 360
-    return (deg + 360) % 360
+    return (deg + 360) % 360 # garantir entre 0 e 360
 
 
-      
 def calculate_rmse_bias_r2(predicted:np.ndarray, measured:np.ndarray ):
-    # -------- Erros --------
+    # Calculate RMSE, BIAS and R2
     # soma dos valores reais (observacões)
     n = measured.sum()
     rmse = np.sqrt(np.sum((predicted  - measured )**2) / n)
@@ -614,4 +532,3 @@ def calculate_rmse_bias_r2(predicted:np.ndarray, measured:np.ndarray ):
     # Mede o quão bem a Weibull explica o histograma
     r2 = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
     return rmse, bias, r2
-

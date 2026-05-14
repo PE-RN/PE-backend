@@ -798,6 +798,7 @@ async def get_layer_id(
 
     return await controller.get_layer_by_id(id)
 
+
 @app.post('/platform', response_model=models.Platform, status_code=status.HTTP_201_CREATED)
 async def create_platform(
     createPlatform: CreatePlatform, 
@@ -809,14 +810,12 @@ async def create_platform(
     try:
         platform: models.Platform = await controller.create_platform(createPlatform)
         return platform
-
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except RuntimeError as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
 
 
 @app.get('/platform', response_model=list[models.Platform])
@@ -827,7 +826,6 @@ async def list_platform(
 ):
     if not has_permission:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
-
     try:
         platform = await controller.list_platforms()
         return platform
@@ -837,6 +835,7 @@ async def list_platform(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))# DADO INVÁLIDO
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))# Erro desconhecido
+
 
 @app.get('/platform/{id}/heights', summary="Lista de alturas para uma plataforma",     description="""
 Retorna a lista de alturas disponíveis para uma plataforma dentro de um intervalo de datas.
@@ -855,10 +854,8 @@ async def getHeightsInPlatform(
     has_permission: bool = Depends(AuthController.get_permission_dependency("layer_admin")),
     controller: PlatformService = Depends(PlatformService.inject_service)
 ):
-
     if not has_permission:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
-
     try:
         heights = await controller.heightsInPlatform(id, start_datetime, end_datetime )
         return heights
@@ -868,7 +865,8 @@ async def getHeightsInPlatform(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))# DADO INVÁLIDO
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))# Erro desconhecido
-    
+
+
 @app.post("/qualified_data/{id}", summary="Salvar dados mensais de uma plataforma", description=
 """
 Recebe um arquivo CSV contendo os dados qualificados da plataforma para processamento.
@@ -913,6 +911,7 @@ async def upload_qualified_data(
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))# DADO INVÁLIDO
 
+
 @app.delete("/qualified_data/{id}" ,  summary="Deleta os dados qualificados de uma plataforma entre duas datas e horários.")
 async def delete_qualified_data(
     id: UUID = PathParam(..., description="Identificador da plataforma"),
@@ -933,7 +932,6 @@ async def delete_qualified_data(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))# DADO INVÁLIDO
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))# Erro desconhecido
-
 
 
 @app.get("/time-series/platform/{id}" ,  summary="Série temporal de um campo de uma estação entre duas datas e horários.")
@@ -957,7 +955,8 @@ async def time_series_list_data_by_field_between_datetimes(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))# DADO INVÁLIDO
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))# Erro desconhecido
-    
+
+
 @app.get("/wind-rose/platform/{id}" ,  summary="Rosa dos ventos com base nos dados de uma plataforma entre duas datas e horários.")
 async def wind_rose_data_between_datetimes(
     id: UUID = PathParam(..., description="Identificador da plataforma"),
@@ -969,7 +968,6 @@ async def wind_rose_data_between_datetimes(
     has_permission: bool = Depends(AuthController.get_permission_dependency("layer_admin")),
     controller: PlatformService = Depends(PlatformService.inject_service)
 ):
-    
     if not has_permission:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
     try:
@@ -981,6 +979,7 @@ async def wind_rose_data_between_datetimes(
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))# Erro desconhecido
 
+
 @app.get("/vertical-profile/platform/{id}" ,  summary="Perfil vertical da velocidade horizontal do vento em uma plataforma.")
 async def vertical_profile_data_between_datetimes(
     id: UUID = PathParam(..., description="Identificador da plataforma"),
@@ -990,7 +989,6 @@ async def vertical_profile_data_between_datetimes(
     has_permission: bool = Depends(AuthController.get_permission_dependency("layer_admin")),
     controller: PlatformService = Depends(PlatformService.inject_service)
 ):
-    
     if not has_permission:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
     try:
@@ -1001,8 +999,8 @@ async def vertical_profile_data_between_datetimes(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))# DADO INVÁLIDO
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))# Erro desconhecido
-    
-# @app.get("/wind-rose/platform/{platform_id}" 
+
+
 @app.get("/diurnal-profile/platform/{id}" ,  summary="Perfil diurno de um campo específico de uma plataforma entre duas datas.")
 async def diurnal_profile_by_field_(
     id: UUID = PathParam(..., description="Identificador da plataforma"),
@@ -1013,7 +1011,6 @@ async def diurnal_profile_by_field_(
     has_permission: bool = Depends(AuthController.get_permission_dependency("layer_admin")),
     controller: PlatformService = Depends(PlatformService.inject_service)
 ):
-
     if not has_permission:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
     try:

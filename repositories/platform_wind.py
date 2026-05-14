@@ -16,25 +16,27 @@ class PlatformRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+
     async def insert_batch_platform(self, batch: list[dict]):
         await self.db.execute(insert(Platform), batch)
+
 
     def insert_platform(self, platform: Platform):
         self.db.add(platform)
     
+
     async def refresh_platform(self, platform: Platform):
         await self.db.refresh(platform)
+
 
     async def get_platform(self, name: str  = None, id: UUID = None) -> Platform | None:
         if name is not None:
             query = select(Platform).where(Platform.name == name)#.options(selectinload(Platform.flag_speed))
         elif id is not None:
             query = select(Platform).where(Platform.id == id)#.options(selectinload(Platform.flag_speed))
-        #.options(selectinload(Platform.raw_data))  # <<< CARREGAMENTO AQUI
         
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
-        # OU return result.first()
 
 
     async def get_data_timeseries_by_height(self, platform, field_name: str, start_search_date, end_search_date, ):
@@ -66,6 +68,7 @@ class PlatformRepository:
         result = await self.db.execute(query)
         return result.all()
     
+
     async def get_last_date(self, platform_id):
         query = (
             select(func.max(QualifiedData.dt).label("last_date"))
@@ -73,6 +76,7 @@ class PlatformRepository:
         )
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
+
 
     async def get_wind_rose_base_data(self, platform, start_search_date, end_search_date, height=None):
         query = (
@@ -90,9 +94,9 @@ class PlatformRepository:
             )
             .order_by(QualifiedData.dt)
         )
-
         result = await self.db.execute(query)
         return result.all()
+
 
     async def list_all_platforms(self) -> list[Platform] | None:
         query = select(Platform)
@@ -100,8 +104,10 @@ class PlatformRepository:
         platforms = result.scalars().all()
         return [p.model_dump() for p in platforms]
 
+
     async def insert_batch_qualified_data(self, batch: list[dict]):
         await self.db.execute(insert(QualifiedData), batch)
+
 
     async def getHeightByPlatform(self, platform:Platform, start_datetime=None, end_datetime=None ):
         query = (
@@ -142,9 +148,9 @@ class PlatformRepository:
         result = await self.db.execute(query)
         return result.all()
     
+
     async def get_average_by_height(self, platform, field_name: str, start_search_date, end_search_date):
         avg_expr = self.create_avg_expr(field_name)
-
         query = (
             select(
                 QualifiedData.height,
@@ -162,6 +168,7 @@ class PlatformRepository:
         result = await self.db.execute(query)
         return result.all()
 
+
     def create_avg_expr(self, field_name):
         if field_name == "wdir" or field_name == "m_wdir":
             return self.func_avg_dir(QualifiedData, field_name)
@@ -169,6 +176,7 @@ class PlatformRepository:
             avg_expr = func.avg(getattr(QualifiedData, field_name))#Media simples de field_name
         return avg_expr
     
+
     def func_avg_dir(self, DataModel, field_name):
         """
             Converte graus em radianos
@@ -188,6 +196,7 @@ class PlatformRepository:
         )
         return avg_expr
     
+
     async def delete_qualified_data_between_datetimes(self, platform, start_datetime, end_datetime):        
         statement = delete(QualifiedData).where(
             QualifiedData.plat_id == platform["id"],
@@ -196,6 +205,7 @@ class PlatformRepository:
         )
         await self.db.exec(statement)
         return await self.db.commit()
+    
     
     async def commit(self):
         await self.db.commit()

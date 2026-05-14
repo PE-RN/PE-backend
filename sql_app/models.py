@@ -295,16 +295,15 @@ class GeoJsonData(SQLModel, table=True):
     name: str
     data: dict = Field(sa_column=Column(pg.JSON))
 
+
 class Platform(SQLModel, table=True):
     __tablename__ = 'platform'
     id: UUID = Field( sa_column=Column(pg.UUID, primary_key=True, unique=True, default=uuid4))
     name: str = Field(index=True, unique=True, nullable=False)
-    # latitude: float= Field()
-    # longitude: float = Field()
     sensor_height: float| None = Field() # Altura do sensor em metros
     
-    # Um sensor pode ter vários dados
     qualified_data: list["QualifiedData"] = Relationship(back_populates="platform")
+
 
 class QualifiedData(SQLModel, table=True):
     __tablename__ = 'qualified_data'
@@ -314,7 +313,6 @@ class QualifiedData(SQLModel, table=True):
     m_pres : float =  Field()  # Met Pressure # Pressão
     m_wspd: float =  Field() # Met Wind Speed # Velocidade do vento
     m_wdir: float =  Field()#Met Wind Direction # Direção do Vento
-
     height: int =  Field(index=True)  # Height (m) #ALTURA em M
     h_spd: float =  Field(index=True) # Horizontal Wind Speed #Velocidade média do Vento Horizontal
     ti : float =  Field() # Turbulence Intensity # Intensidade da turbulência
