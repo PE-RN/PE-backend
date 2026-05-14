@@ -12,7 +12,7 @@ from Crypto.Util.Padding import pad, unpad
 
 import sentry_sdk
 from dotenv import load_dotenv, find_dotenv
-from fastapi import Body, Depends, BackgroundTasks, FastAPI, status, Response, UploadFile, HTTPException, Form, Body, File, Query, Path as PathParam
+from fastapi import Body, Depends, BackgroundTasks, FastAPI, status, Response, UploadFile, HTTPException, Form, Body, File, Query, Request, Path as PathParam
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -25,6 +25,7 @@ from datetime import datetime, time, date
 import pandas as pd
 
 from controllers.auth_controller import AuthController
+from controllers.admin_analytics_controller import AdminAnalyticsController, AdminAnalyticsValidationError
 from controllers.feedback_controller import FeedbackController
 from controllers.geo_files_controller import GeoFilesController
 from controllers.process_controller import ProcessController
@@ -32,7 +33,17 @@ from controllers.user_controller import UserController
 from controllers.media_controller import MediaController
 from controllers.layers_controller import LayersController
 from controllers.platform_wind import PlatformService
-from schemas.AdminStatusResponse import AdminStatusResponse
+from schemas.adminStatusResponse import AdminStatusResponse
+from schemas.admin_analytics import (
+    AdminAnalyticsAdminOperationsQuery,
+    AdminAnalyticsExportRequest,
+    AdminAnalyticsFileUsageQuery,
+    AdminAnalyticsFilterOptionsQuery,
+    AdminAnalyticsMapUsageQuery,
+    AdminAnalyticsOverviewQuery,
+    AdminAnalyticsSystemHealthQuery,
+    AdminAnalyticsUserActivityQuery,
+)
 from schemas.layers import LayerGroupCreate, LayerCreate
 from schemas.feature import Feature
 from schemas.featureCollection import FeatureCollection
@@ -96,6 +107,17 @@ async def decrypt_data(encrypted_data: str) -> dict:
     return json.loads(plaintext.decode('utf-8'))
 
 app = FastAPI(lifespan=lifespan)
+
+
+@app.exception_handler(AdminAnalyticsValidationError)
+async def admin_analytics_validation_exception_handler(
+    request: Request,
+    exc: AdminAnalyticsValidationError,
+):
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": exc.detail, "errors": exc.errors},
+    )
 
 private_directory = Path("assets/public")
 private_directory.mkdir(parents=True, exist_ok=True)
@@ -835,6 +857,164 @@ async def list_platform(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))# DADO INVÁLIDO
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))# Erro desconhecido
+
+
+@app.get("/admin-analytics/filter-options")
+async def get_admin_analytics_filter_options(
+    request: Request,
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[AdminAnalyticsController, Depends(AdminAnalyticsController.inject_controller)],
+):
+    await controller.assert_admin(user)
+    query: AdminAnalyticsFilterOptionsQuery = controller.parse_query(AdminAnalyticsFilterOptionsQuery, request.query_params)
+    return await controller.get_filter_options(query)
+
+
+@app.get("/admin-analytics/overview")
+async def get_admin_analytics_overview(
+    request: Request,
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[AdminAnalyticsController, Depends(AdminAnalyticsController.inject_controller)],
+):
+    await controller.assert_admin(user)
+    query: AdminAnalyticsOverviewQuery = controller.parse_query(AdminAnalyticsOverviewQuery, request.query_params)
+    return await controller.get_overview(query)
+
+
+@app.get("/admin-analytics/user-activity")
+async def get_admin_analytics_user_activity(
+    request: Request,
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[AdminAnalyticsController, Depends(AdminAnalyticsController.inject_controller)],
+):
+    await controller.assert_admin(user)
+    query: AdminAnalyticsUserActivityQuery = controller.parse_query(AdminAnalyticsUserActivityQuery, request.query_params)
+    return await controller.get_user_activity(query)
+
+
+@app.get("/admin-analytics/user-activity/{user_id}")
+async def get_admin_analytics_user_activity_detail(
+    user_id: str,
+    request: Request,
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[AdminAnalyticsController, Depends(AdminAnalyticsController.inject_controller)],
+):
+    await controller.assert_admin(user)
+    query: AdminAnalyticsUserActivityQuery = controller.parse_query(AdminAnalyticsUserActivityQuery, request.query_params)
+    return await controller.get_user_activity_detail(user_id, query)
+
+
+@app.get("/admin-analytics/file-usage")
+async def get_admin_analytics_file_usage(
+    request: Request,
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[AdminAnalyticsController, Depends(AdminAnalyticsController.inject_controller)],
+):
+    await controller.assert_admin(user)
+    query: AdminAnalyticsFileUsageQuery = controller.parse_query(AdminAnalyticsFileUsageQuery, request.query_params)
+    return await controller.get_file_usage(query)
+
+
+@app.get("/admin-analytics/file-usage/{file_id}")
+async def get_admin_analytics_file_usage_detail(
+    file_id: str,
+    request: Request,
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[AdminAnalyticsController, Depends(AdminAnalyticsController.inject_controller)],
+):
+    await controller.assert_admin(user)
+    query: AdminAnalyticsFileUsageQuery = controller.parse_query(AdminAnalyticsFileUsageQuery, request.query_params)
+    return await controller.get_file_usage_detail(file_id, query)
+
+
+@app.get("/admin-analytics/map-usage")
+async def get_admin_analytics_map_usage(
+    request: Request,
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[AdminAnalyticsController, Depends(AdminAnalyticsController.inject_controller)],
+):
+    await controller.assert_admin(user)
+    query: AdminAnalyticsMapUsageQuery = controller.parse_query(AdminAnalyticsMapUsageQuery, request.query_params)
+    return await controller.get_map_usage(query)
+
+
+@app.get("/admin-analytics/map-usage/{layer_id}")
+async def get_admin_analytics_map_usage_detail(
+    layer_id: str,
+    request: Request,
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[AdminAnalyticsController, Depends(AdminAnalyticsController.inject_controller)],
+):
+    await controller.assert_admin(user)
+    query: AdminAnalyticsMapUsageQuery = controller.parse_query(AdminAnalyticsMapUsageQuery, request.query_params)
+    return await controller.get_map_usage_detail(layer_id, query)
+
+
+@app.get("/admin-analytics/admin-operations")
+async def get_admin_analytics_admin_operations(
+    request: Request,
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[AdminAnalyticsController, Depends(AdminAnalyticsController.inject_controller)],
+):
+    await controller.assert_admin(user)
+    query: AdminAnalyticsAdminOperationsQuery = controller.parse_query(AdminAnalyticsAdminOperationsQuery, request.query_params)
+    return await controller.get_admin_operations(query)
+
+
+@app.get("/admin-analytics/admin-operations/{event_id}")
+async def get_admin_analytics_admin_operation_detail(
+    event_id: str,
+    request: Request,
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[AdminAnalyticsController, Depends(AdminAnalyticsController.inject_controller)],
+):
+    await controller.assert_admin(user)
+    query: AdminAnalyticsAdminOperationsQuery = controller.parse_query(AdminAnalyticsAdminOperationsQuery, request.query_params)
+    return await controller.get_admin_operation_detail(event_id, query)
+
+
+@app.get("/admin-analytics/system-health")
+async def get_admin_analytics_system_health(
+    request: Request,
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[AdminAnalyticsController, Depends(AdminAnalyticsController.inject_controller)],
+):
+    await controller.assert_admin(user)
+    query: AdminAnalyticsSystemHealthQuery = controller.parse_query(AdminAnalyticsSystemHealthQuery, request.query_params)
+    return await controller.get_system_health(query)
+
+
+@app.get("/admin-analytics/system-health/{endpoint_key}")
+async def get_admin_analytics_system_health_detail(
+    endpoint_key: str,
+    request: Request,
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[AdminAnalyticsController, Depends(AdminAnalyticsController.inject_controller)],
+):
+    await controller.assert_admin(user)
+    query: AdminAnalyticsSystemHealthQuery = controller.parse_query(AdminAnalyticsSystemHealthQuery, request.query_params)
+    return await controller.get_system_health_detail(endpoint_key, query)
+
+
+@app.post("/admin-analytics/export")
+async def post_admin_analytics_export(
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[AdminAnalyticsController, Depends(AdminAnalyticsController.inject_controller)],
+    payload: dict = Body(...),
+):
+    await controller.assert_admin(user)
+    export_request: AdminAnalyticsExportRequest = controller.parse_body(AdminAnalyticsExportRequest, payload)
+    return await controller.create_export(export_request)
+
+
+@app.get("/admin-analytics/export/{export_id}")
+async def get_admin_analytics_export(
+    export_id: str,
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[AdminAnalyticsController, Depends(AdminAnalyticsController.inject_controller)],
+):
+    await controller.assert_admin(user)
+    return await controller.get_export(export_id)
 
 
 @app.get('/platform/{id}/heights', summary="Lista de alturas para uma plataforma",     description="""

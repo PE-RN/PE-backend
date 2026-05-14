@@ -321,3 +321,54 @@ class QualifiedData(SQLModel, table=True):
     plat_id: UUID = Field(foreign_key="platform.id", index=True, nullable=False)
     __table_args__ = ( UniqueConstraint("dt", "plat_id", "height", name="uq_qualified_data_datetime_plat_id_height"), )
     platform: Platform = Relationship(back_populates="qualified_data")
+
+
+class AdminAnalyticsEvent(SQLModel, table=True):
+    __tablename__ = "admin_analytics_event"
+
+    id: UUID = Field(
+        sa_column=Column(pg.UUID, primary_key=True, unique=True, default=uuid4)
+    )
+    created_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.utcnow))
+    updated_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.utcnow))
+    deleted_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=None, nullable=True))
+
+    domain: str = Field(index=True)
+    event_type: str = Field(index=True)
+    label: str
+    occurred_at: datetime = Field(index=True)
+    actor_user_id: UUID | None = Field(default=None, foreign_key="Users.id", index=True)
+    actor_name: str | None = Field(default=None)
+    target_type: str | None = Field(default=None, index=True)
+    target_id: str | None = Field(default=None, index=True)
+    status: str | None = Field(default=None, index=True)
+    endpoint_key: str | None = Field(default=None, index=True)
+    method: str | None = Field(default=None)
+    status_code: int | None = Field(default=None, index=True)
+    latency_ms: int | None = Field(default=None)
+    file_id: UUID | None = Field(default=None, foreign_key="PDF_Files.id", index=True)
+    layer_id: UUID | None = Field(default=None, foreign_key="Layer.id", index=True)
+    payload: dict | None = Field(default=None, sa_column=Column("metadata", pg.JSON, nullable=True))
+
+
+class AdminAnalyticsExport(SQLModel, table=True):
+    __tablename__ = "admin_analytics_export"
+
+    id: UUID = Field(
+        sa_column=Column(pg.UUID, primary_key=True, unique=True, default=uuid4)
+    )
+    created_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.utcnow))
+    updated_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.utcnow))
+    deleted_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=None, nullable=True))
+
+    domain: str
+    format: str
+    status: str
+    name: str
+    path: str
+    content_type: str
+    generated_at: datetime | None = Field(sa_column=Column(pg.TIMESTAMP, default=None, nullable=True))
+    expires_at: datetime | None = Field(sa_column=Column(pg.TIMESTAMP, default=None, nullable=True))
+    detail: str | None = Field(default=None)
+    filters: dict | None = Field(default=None, sa_column=Column(pg.JSON, nullable=True))
+    columns: list | None = Field(default=None, sa_column=Column(pg.JSON, nullable=True))
