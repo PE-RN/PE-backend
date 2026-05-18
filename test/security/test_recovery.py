@@ -11,11 +11,17 @@ from uuid import uuid4
 
 import bcrypt
 import pytest
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from controllers.auth_controller import AuthController
+from main import app
 from repositories.auth_repository import AuthRepository
+from sql_app.database import get_db
 from sql_app import models
-from test.conftest import TesteSessionLocal
+from test.conftest import TEST_DATABASE_URL, TesteSessionLocal
 
 
 # ---------------------------------------------------------------------------
@@ -76,6 +82,64 @@ async def test_recovery_known_email_returns_200(async_client):
             json={"user_email": email},
         )
     assert response.status_code == 200
+
+
+@pytest.mark.anyio
+async def test_recovery_known_email_with_expire_on_commit_session_returns_200(async_client):
+    """Recovery must still work when the request session expires ORM instances on commit."""
+    expire_engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True, poolclass=NullPool)
+    ExpiringSessionLocal = async_sessionmaker(
+        autocommit=False,
+        autoflush=False,
+        bind=expire_engine,
+        class_=AsyncSession,
+        expire_on_commit=True,
+    )
+
+    async def get_expiring_db():
+        async with ExpiringSessionLocal() as db:
+            yield db
+
+    email = _rand_email()
+    original_override = app.dependency_overrides.get(get_db)
+    app.dependency_overrides[get_db] = get_expiring_db
+
+    try:
+        async with ExpiringSessionLocal() as db:
+            user = models.User(
+                email=email,
+                password=_hash_pw("TestPass123!"),
+                ocupation="pesquisador",
+                gender="M",
+                education="graduacao",
+                institution="UFRN",
+                age="25",
+                user="Test User",
+            )
+            db.add(user)
+            await db.commit()
+
+        with patch.object(AuthController, "_send_reset_link_email_wrapper"):
+            response = await async_client.post(
+                "/recovery-password",
+                json={"user_email": email},
+            )
+
+        assert response.status_code == 200
+
+        async with ExpiringSessionLocal() as db:
+            result = await db.exec(
+                select(models.PasswordResetToken).join(models.User).where(models.User.email == email)
+            )
+            token_row = result.first()
+
+        assert token_row is not None
+    finally:
+        if original_override is None:
+            app.dependency_overrides.pop(get_db, None)
+        else:
+            app.dependency_overrides[get_db] = original_override
+        await expire_engine.dispose()
 
 
 @pytest.mark.anyio

@@ -256,16 +256,18 @@ class AuthController:
         """
         user = await self.repository.get_user_by_email(user_email)
         if user:
+            user_id = user.id
+            recipient_email = user.email
             raw_token = secrets.token_urlsafe(32)
             token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
             expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
-            await self.repository.create_password_reset_token(user.id, token_hash, expires_at)
+            await self.repository.create_password_reset_token(user_id, token_hash, expires_at)
 
             reset_link = (
                 f"{getenv('FRONT_URL')}pages/reset-password/reset-password.html"
                 f"?token={raw_token}"
             )
-            email_message = self._create_reset_link_email_message(reset_link, user.email)
+            email_message = self._create_reset_link_email_message(reset_link, recipient_email)
             self.background_tasks.add_task(
                 self._send_reset_link_email_wrapper, email_message=email_message
             )
