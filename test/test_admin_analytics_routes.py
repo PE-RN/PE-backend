@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException, status
-from sqlmodel import delete
+from sqlmodel import delete, select
 
 from controllers.auth_controller import AuthController
 from main import app
@@ -34,6 +34,29 @@ def override_auth():
         app.dependency_overrides.pop(AuthController.get_user_from_token, None)
     else:
         app.dependency_overrides[AuthController.get_user_from_token] = original_override
+
+
+@pytest.fixture(autouse=True)
+async def cleanup_runtime_analytics_rows():
+    async with TesteSessionLocal() as db:
+        existing_event_ids = set((await db.exec(select(models.AdminAnalyticsEvent.id))).all())
+        existing_export_ids = set((await db.exec(select(models.AdminAnalyticsExport.id))).all())
+
+    yield
+
+    async with TesteSessionLocal() as db:
+        current_event_ids = set((await db.exec(select(models.AdminAnalyticsEvent.id))).all())
+        current_export_ids = set((await db.exec(select(models.AdminAnalyticsExport.id))).all())
+
+        new_event_ids = list(current_event_ids - existing_event_ids)
+        new_export_ids = list(current_export_ids - existing_export_ids)
+
+        if new_event_ids:
+            await db.exec(delete(models.AdminAnalyticsEvent).where(models.AdminAnalyticsEvent.id.in_(new_event_ids)))
+        if new_export_ids:
+            await db.exec(delete(models.AdminAnalyticsExport).where(models.AdminAnalyticsExport.id.in_(new_export_ids)))
+
+        await db.commit()
 
 
 @pytest.fixture

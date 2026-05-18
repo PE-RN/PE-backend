@@ -16,7 +16,6 @@ from sqlmodel import select
 
 if TYPE_CHECKING:
     import geopandas
-    from osgeo.gdal import Dataset
 
 
 class GeoRepository:
@@ -138,10 +137,15 @@ class GeoRepository:
 
         import geopandas
 
+        table_name = self.normalize_table_name(table_name)
         polygon = geopandas.read_postgis(f'select * from {table_name}', geom_col='geometry', con=self.db.bind)
         return polygon.to_json()
 
     async def get_raster(self, table_name, x, y, z) -> Geometry | None:
+
+        table_name = self.normalize_table_name(table_name)
+        # Cast tile coordinates to int to prevent SQL injection via path parameters.
+        x, y, z = int(x), int(y), int(z)
 
         sql_query = "set postgis.gdal_enabled_drivers = 'ENABLE_ALL';"
         await self.db.execute(text(sql_query))
@@ -165,9 +169,9 @@ class GeoRepository:
         data = await self.db.exec(query)
         return data.first()
 
-    async def get_raster_dataset(self, table_name) -> "Dataset | None":
+    async def get_raster_dataset(self, table_name) -> bytes | None:
 
-        from osgeo import gdal
+        table_name = self.normalize_table_name(table_name)
 
         sql_query = "set postgis.gdal_enabled_drivers = 'ENABLE_ALL';"
         await self.db.execute(text(sql_query))
@@ -179,13 +183,7 @@ class GeoRepository:
         if not raster_datas:
             return None
 
-        with tempfile.NamedTemporaryFile(suffix=".tif", delete=False) as temp_file:
-            temp_file.write(raster_datas[0])
-
-        dataset = gdal.Open(temp_file.name)
-        os.remove(temp_file.name)
-
-        return dataset
+        return raster_datas[0]
 
     async def get_geofile_download(self, table_name) -> str:
 

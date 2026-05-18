@@ -103,7 +103,7 @@ class TemporaryUser(SQLModel, table=True):
     password: str
     ocupation: str
     group_id: UUID | None = Field(
-        default='5c190872-1800-4c8c-9411-23937d0a8d52',
+        default=None,
         foreign_key="Groups.id"
     )
     gender: str
@@ -132,7 +132,7 @@ class User(SQLModel, table=True):
     ocupation: str
     is_active: bool = Field(default=True)
     group_id: UUID | None = Field(
-        default='5c190872-1800-4c8c-9411-23937d0a8d52',
+        default=None,
         foreign_key="Groups.id"
     )
     group: Group | None = Relationship(back_populates="users")
@@ -141,6 +141,9 @@ class User(SQLModel, table=True):
     institution: str
     age: str
     user: str
+    password_changed_at: datetime | None = Field(
+        sa_column=Column(pg.TIMESTAMP(timezone=True), nullable=True, default=None)
+    )
 
 
 class UserListResponse(SQLModel, table=False):
@@ -294,6 +297,25 @@ class GeoJsonData(SQLModel, table=True):
     )
     name: str
     data: dict = Field(sa_column=Column(pg.JSON))
+
+
+class PasswordResetToken(SQLModel, table=True):
+
+    """
+    Single-use token for password recovery. The raw token is emailed to the
+    user as part of a reset link; only the SHA-256 hash is persisted here.
+    """
+
+    __tablename__ = "password_reset_token"
+
+    id: UUID = Field(
+        sa_column=Column(pg.UUID, primary_key=True, unique=True, default=uuid4)
+    )
+    user_id: UUID = Field(foreign_key="Users.id")
+    token_hash: str = Field(index=True)
+    expires_at: datetime = Field(sa_column=Column(pg.TIMESTAMP(timezone=True), nullable=False))
+    used: bool = Field(default=False)
+    created_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
 
 
 class Platform(SQLModel, table=True):

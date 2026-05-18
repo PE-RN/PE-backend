@@ -1,3 +1,4 @@
+import hashlib
 import secrets
 import string
 from datetime import datetime, timedelta, timezone
@@ -6,7 +7,7 @@ from typing import Annotated, Callable
 from uuid import UUID
 
 import bcrypt
-from fastapi import BackgroundTasks, Depends, Header, status
+from fastapi import BackgroundTasks, Depends, Header, Request, status
 from fastapi.exceptions import HTTPException
 from fastapi.responses import RedirectResponse
 from jose import JWTError, jwt, ExpiredSignatureError
@@ -52,8 +53,16 @@ class AuthController:
     @staticmethod
     async def get_user_from_token(
         repository: Annotated[AuthRepository, Depends(inject_repository)],
-        authorization: Annotated[str, Header()]
+        request: Request,
+        authorization: Annotated[str | None, Header()] = None,
     ) -> User:
+        # If no Authorization header, fall back to httpOnly access_token cookie
+        if authorization is None:
+            cookie_token = request.cookies.get("access_token")
+            if cookie_token:
+                authorization = f"Bearer {cookie_token}"
+            else:
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido!")
 
         try:
             token_type, token = authorization.split(' ')
@@ -68,6 +77,9 @@ class AuthController:
             try:
                 anonymous_user = await repository.get_anonymous_user_by_id(sub)
                 if anonymous_user:
+                    tracker = getattr(request.state, "admin_analytics_tracker", None)
+                    if tracker is not None:
+                        tracker.bind_actor(anonymous_user)
                     return anonymous_user
             except Exception as e:
                 capture_exception(e)
@@ -75,6 +87,9 @@ class AuthController:
 
             email = sub
             user = await repository.get_user_by_email(email)
+            tracker = getattr(request.state, "admin_analytics_tracker", None) if request is not None else None
+            if tracker is not None:
+                tracker.bind_actor(user)
             return user
 
         except ExpiredSignatureError:
@@ -91,17 +106,19 @@ class AuthController:
 
     def generate_access_token(self, email: str) -> str:
 
-        to_enconde = {"sub": email}
+        to_enconde = {"sub": email, "typ": "access"}
         acess_token_expires_time = datetime.now(timezone.utc) + timedelta(minutes=int(getenv("ACCESS_TOKEN_EXPIRE_MINUTES")))
         to_enconde.update({"exp": acess_token_expires_time})
 
         return jwt.encode(to_enconde, getenv("SECRET_KEY"), algorithm=getenv("ALGORITHM"))
 
-    def generate_refresh_token(self, email: str) -> str:
+    def generate_refresh_token(self, email: str, password_changed_at: datetime | None = None) -> str:
 
-        to_enconde = {"sub": email}
+        to_enconde = {"sub": email, "typ": "refresh"}
         acess_token_expires_time = datetime.now(timezone.utc) + timedelta(minutes=int(getenv("REFRESH_TOKEN_EXPIRE_MINUTES")))
         to_enconde.update({"exp": acess_token_expires_time})
+        if password_changed_at is not None:
+            to_enconde["pwd_ts"] = password_changed_at.timestamp()
 
         return jwt.encode(to_enconde, getenv("SECRET_KEY"), algorithm=getenv("ALGORITHM"))
 
@@ -128,7 +145,11 @@ class AuthController:
         
         is_admin = await self.user_is_admin(user=user)
 
-        return Token(access_token=self.generate_access_token(email), refresh_token=self.generate_refresh_token(email), is_admin=is_admin)
+        return Token(
+            access_token=self.generate_access_token(email),
+            refresh_token=self.generate_refresh_token(email, password_changed_at=user.password_changed_at),
+            is_admin=is_admin,
+        )
 
     async def authenticate_user(self, email: EmailStr, password: str) -> User | None:
 
@@ -171,6 +192,9 @@ class AuthController:
         except JWTError:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido!")
 
+        if payload.get("typ") != "refresh":
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido!")
+
         # anonymouns user return id
         sub = payload.get('sub')
         try:
@@ -189,17 +213,29 @@ class AuthController:
         if not user or not user.is_active:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuário não encontrado!")
 
+        # If the user has ever changed their password, the refresh token MUST carry
+        # a matching pwd_ts.  Tokens issued before the first password change (which
+        # have no pwd_ts) are rejected as soon as password_changed_at is set.
+        if user.password_changed_at is not None:
+            pwd_ts_payload = payload.get("pwd_ts")
+            if pwd_ts_payload is None or abs(user.password_changed_at.timestamp() - pwd_ts_payload) > 1:
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido!")
+
         return email
 
     async def refresh_tokens(self, token) -> Token:
 
         email = await self.validate_and_get_email_from_refresh_token(token)
+        # Re-attach current password_changed_at so the new refresh token stays valid
+        # only until the next password change.  Anonymous users have no row here.
+        user = await self.repository.get_user_by_email(email)
+        pwd_ts = user.password_changed_at if user else None
         new_access_token = self.generate_access_token(email)
-        new_refresh_token = self.generate_refresh_token(email)
+        new_refresh_token = self.generate_refresh_token(email, password_changed_at=pwd_ts)
         return Token(access_token=new_access_token, refresh_token=new_refresh_token)
 
     def generate_temporary_password(self):
-
+        # Kept for backward compatibility only – not used in recovery flow.
         caracteres = string.digits
         senha = ''.join(secrets.choice(caracteres) for _ in range(9))
         return senha
@@ -213,19 +249,52 @@ class AuthController:
         return hash.decode('utf-8')
 
     async def recovery_password(self, user_email: str) -> None:
-
+        """
+        Tokenized reset-link flow.
+        Always returns without error to prevent user enumeration.
+        The raw token is emailed as a link; only its SHA-256 hash is stored.
+        """
         user = await self.repository.get_user_by_email(user_email)
+        if user:
+            raw_token = secrets.token_urlsafe(32)
+            token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+            expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+            await self.repository.create_password_reset_token(user.id, token_hash, expires_at)
+
+            reset_link = (
+                f"{getenv('FRONT_URL')}pages/reset-password/reset-password.html"
+                f"?token={raw_token}"
+            )
+            email_message = self._create_reset_link_email_message(reset_link, user.email)
+            self.background_tasks.add_task(
+                self._send_reset_link_email_wrapper, email_message=email_message
+            )
+
+    async def reset_password(self, raw_token: str, new_password: str) -> None:
+        """
+        Validates the reset token and updates the user's password.
+        Uses the same generic error message for all failure modes to prevent
+        token oracle attacks.
+        """
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        token = await self.repository.get_valid_password_reset_token(token_hash)
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Token inválido ou expirado.",
+            )
+
+        user = await self.repository.get_user_by_id(token.user_id)
         if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado!")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Token inválido ou expirado.",
+            )
 
-        temporary_password = self.generate_temporary_password()
-        temporary_password_hashed = self._hash_password(temporary_password)
-
-        user.password = temporary_password_hashed
+        user.password = self._hash_password(new_password)
+        user.password_changed_at = datetime.now(timezone.utc)
         await self.repository.update_user(user)
-        email_message = self._create_recovery_email_message(temporary_password, user.email)
-
-        self.background_tasks.add_task(self._send_email_recovery_password_wrapper, email_message=email_message)
+        await self.repository.mark_password_reset_token_used(token)
 
     async def change_password(self, user: User, actual_password: str, new_password: str) -> None:
 
@@ -234,6 +303,7 @@ class AuthController:
 
         new_password_hashed = self._hash_password(new_password)
         user.password = new_password_hashed
+        user.password_changed_at = datetime.now(timezone.utc)
         await self.repository.update_user(user)
 
     async def create_anonymous_user(self, ocupation: str):
@@ -245,40 +315,40 @@ class AuthController:
 
         return Token(access_token=access_token, refresh_token=refresh_token)
 
-    def _create_recovery_email_message(self, new_password, to_email) -> EmailMessage:
+    def _create_reset_link_email_message(self, reset_link: str, to_email: str) -> EmailMessage:
 
-        content = HtmlGenerator().get_password_recovery(
-            contact_link=f"{getenv('FRONT_URL')}pages/contact/contact.html",
+        content = HtmlGenerator().get_password_reset_link(
+            reset_link=reset_link,
             user_email=to_email,
-            enter_link=f"{getenv('FRONT_URL')}pages/login/login.html",
-            img_logo_cid='logo',
-            reset_password_link=f"{getenv('FRONT_URL')}pages/login/login.html",  # TODO moved to correct page after the page is ready on front side
-            img_isi_er_cid='isi',
-            img_state_cid='estado',
-            new_password=new_password)
+        )
+        return EmailMessage.with_default_logo_images(
+            to_email=to_email,
+            subject="Recuperação de senha Plataforma de Energias do RN",
+            html_content=content,
+        )
 
-        return EmailMessage.with_default_logo_images(to_email=to_email, subject="Recuperação de senha Plataforma de Energias do RN", html_content=content)
-
-    def _send_email_recovery_password_wrapper(self, email_message: EmailMessage):
+    def _send_reset_link_email_wrapper(self, email_message: EmailMessage):
+        # Store only a redacted audit record — never log the reset link itself.
+        redacted_content = "[REDACTED - password reset link email]"
         try:
             self.email_service.send_email_recovery_password(email_message)
             syncify(async_function=self.repository.create_log_email)(
                 subject=email_message.subject,
-                content=email_message.html_content,
+                content=redacted_content,
                 to=email_message.to_email,
                 sender=getenv('EMAIL_SMTP'),
                 has_error=False,
-                error_message=None
+                error_message=None,
             )
         except Exception as e:
             capture_exception(e)
             syncify(async_function=self.repository.create_log_email)(
                 subject=email_message.subject,
-                content=email_message.html_content,
+                content=redacted_content,
                 to=email_message.to_email,
                 sender=getenv('EMAIL_SMTP'),
                 has_error=True,
-                error_message=str(e)
+                error_message="Email delivery failed",
             )
 
     def _create_confirmation_account_email_message(self, to_email, confirmation_link_url) -> EmailMessage:

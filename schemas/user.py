@@ -8,7 +8,7 @@ class UserCreate(BaseModel):
     email: str
     ocupation: OcupationEnum
     password: str
-    group_id: int | None = '5c190872-1800-4c8c-9411-23937d0a8d52'
+    group_id: str | None = None
     gender: str
     education: str
     institution: str

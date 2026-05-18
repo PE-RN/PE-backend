@@ -10,6 +10,7 @@ AdminAnalyticsGranularity = Literal["hour", "day", "week", "month"]
 AdminAnalyticsSortOrder = Literal["asc", "desc"]
 AdminAnalyticsTrend = Literal["up", "down", "flat"]
 AdminAnalyticsDomain = Literal[
+    "overview",
     "user-activity",
     "file-usage",
     "map-usage",
@@ -370,6 +371,8 @@ class AdminAnalyticsFilterOptionsResponse(BaseModel):
 class AdminAnalyticsOverviewResponse(BaseModel):
     summary_cards: list[AdminAnalyticsSummaryCard]
     tab_counts: dict[str, int]
+    timeseries: list[AdminAnalyticsTimeseriesPoint]
+    breakdowns: list[AdminAnalyticsBreakdown]
     alerts: list[AdminAnalyticsAlert]
     recent_activity: list[AdminAnalyticsActivityEvent]
     last_updated_at: datetime
@@ -462,7 +465,7 @@ class AdminAnalyticsExportRequest(BaseModel):
     domain: AdminAnalyticsDomain
     format: AdminAnalyticsExportFormat
     filters: dict[str, Any]
-    columns: list[str] = Field(min_length=1)
+    columns: list[str] | None = None
 
 
 class AdminAnalyticsExportResponse(BaseModel):

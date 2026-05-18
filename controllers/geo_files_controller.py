@@ -41,13 +41,18 @@ class GeoFilesController:
         await self._validate_geofile(table_name, 'polygon')
         try:
             return await self.repository.get_polygon_by_name(table_name)
+        except ValueError as error:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
         except Exception as error:
             capture_exception(error)
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error)
 
     async def get_raster(self, table_name: str, x: int, y: int, z: int):
 
-        raster_file = await self.repository.get_raster(table_name, x, y, z)
+        try:
+            raster_file = await self.repository.get_raster(table_name, x, y, z)
+        except ValueError as error:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
         if not raster_file:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Raster file não processado!')
 

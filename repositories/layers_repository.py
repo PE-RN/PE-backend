@@ -2,6 +2,7 @@ from fastapi import HTTPException
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sql_app import models
 from sqlalchemy.orm import selectinload
+from sqlalchemy import text
 from schemas.layers import LayerGroupCreate, LayerCreate
 from sqlmodel import select, delete
 from pathlib import Path
@@ -97,6 +98,26 @@ class LayersRepository:
                     del data[layer_name]
                     with open(json_file, "w", encoding="utf-8") as f:
                         json.dump(data, f, ensure_ascii=False, indent=4)
+
+        # Record a deletion event (layer_id=None since the row is about to be removed;
+        # full details are preserved in target_id and payload)
+        deletion_event = models.AdminAnalyticsEvent(
+            domain="layer",
+            event_type="layer_deleted",
+            label=f"Camada '{existing_layer.name}' excluída",
+            occurred_at=datetime.datetime.utcnow(),
+            target_type="layer",
+            target_id=str(existing_layer.id),
+            layer_id=None,
+            payload={"layer_id": str(existing_layer.id), "layer_name": existing_layer.name},
+        )
+        self.db.add(deletion_event)
+
+        # Null out analytics event references to avoid FK violation
+        await self.db.execute(
+            text('UPDATE admin_analytics_event SET layer_id = NULL WHERE layer_id = :lid'),
+            {"lid": existing_layer.id}
+        )
 
         # Remove do banco
         await self.db.delete(existing_layer)

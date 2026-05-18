@@ -1,28 +1,28 @@
+import logging
 import os
 import shutil
 import tempfile
-from contextlib import asynccontextmanager
-from typing import Annotated, List
-from uuid import UUID
-
 import base64
-from Crypto.Cipher import AES
-from Crypto.Random import get_random_bytes
-from Crypto.Util.Padding import pad, unpad
+from contextlib import asynccontextmanager
+from typing import Annotated, Any, List
+from uuid import UUID
 
 import sentry_sdk
 from dotenv import load_dotenv, find_dotenv
 from fastapi import Body, Depends, BackgroundTasks, FastAPI, status, Response, UploadFile, HTTPException, Form, Body, File, Query, Request, Path as PathParam
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import EmailStr
+from pydantic import BaseModel, EmailStr
 from typing import Union
 from pathlib import Path
 from typing import Optional, Annotated
 import json
 from datetime import datetime, time, date
 import pandas as pd
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from controllers.auth_controller import AuthController
 from controllers.admin_analytics_controller import AdminAnalyticsController, AdminAnalyticsValidationError
@@ -52,10 +52,55 @@ from schemas.platform_wind import CreatePlatform
 from schemas.token import Token
 from schemas.user import UserCreate, UserUpdate
 from schemas.media import MediaCreate, MediaUpdate
+from services.admin_analytics_service import AdminAnalyticsTracker
 from sql_app import models
 from sql_app.database import init_db
 from enums.ocupation_enum import OcupationEnum
 from enums.platform_enum import WindRoseMode, FieldsQualifiedData
+
+
+BACKEND_ROOT = Path(__file__).resolve().parent
+PUBLIC_ASSETS_DIR = BACKEND_ROOT / "assets" / "public"
+
+
+def resolve_storage_path(path_value: str | None) -> Path | None:
+    if not path_value:
+        return None
+
+    storage_path = Path(path_value)
+    if storage_path.is_absolute():
+        return storage_path
+
+    return (BACKEND_ROOT / storage_path).resolve()
+
+
+def _bind_layer_event_context(request: Request, layer: models.Layer) -> None:
+    request.state.layer_event_context = {
+        "layer_id": str(layer.id),
+        "layer_name": layer.name,
+        "group_id": str(layer.layer_group_id) if layer.layer_group_id else None,
+    }
+
+    saved_path = resolve_storage_path(layer.path)
+    if saved_path is None or not saved_path.exists():
+        return
+
+    try:
+        with saved_path.open("r", encoding="utf-8") as handle:
+            geojson = json.load(handle)
+        features = geojson.get("features", [])
+        request.state.layer_upload_details = {
+            "feature_count": len(features),
+            "geometry_types": list(
+                {
+                    geometry["type"]
+                    for feature in features
+                    if (geometry := feature.get("geometry")) and geometry.get("type")
+                }
+            ),
+        }
+    except Exception:
+        pass
 
 
 @asynccontextmanager
@@ -79,34 +124,61 @@ async def lifespan(app: FastAPI):
     await init_db()
     yield
 
+app = FastAPI(lifespan=lifespan, dependencies=[Depends(AdminAnalyticsTracker.inject_tracker)])
 
-async def get_encryption_key():
-    key_hex = os.getenv("ENCRYPTION_KEY")
-    if key_hex is None:
-        raise ValueError("ENCRYPTION_KEY não está definida no ambiente.")
-    return bytes.fromhex(key_hex)
-
-
-async def encrypt_data(data: dict) -> str:
-    plaintext = json.dumps(data)
-
-    iv = get_random_bytes(16)
-    cipher = AES.new(await get_encryption_key(), AES.MODE_CBC, iv)
-
-    ciphertext = cipher.encrypt(pad(plaintext.encode('utf-8'), AES.block_size))
-    return base64.b64encode(iv + ciphertext).decode('utf-8')
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
-async def decrypt_data(encrypted_data: str) -> dict:
-    iv = encrypted_data[:16]
-    ciphertext = encrypted_data[16:]
+@app.middleware("http")
+async def admin_analytics_middleware(request: Request, call_next):
+    tracker = await AdminAnalyticsTracker.inject_tracker(request)
+    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    detail = None
 
-    cipher = AES.new(await get_encryption_key(), AES.MODE_CBC, iv)
-    plaintext = unpad(cipher.decrypt(ciphertext), AES.block_size)
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        return response
+    except Exception as exc:
+        detail = str(exc)
+        raise
+    finally:
+        if tracker.should_track_request():
+            event_status = "error" if status_code >= 400 else "success"
+            try:
+                await tracker.record_system_health(
+                    status_code=status_code,
+                    status=event_status,
+                    detail=detail,
+                )
+                business_event = tracker.build_business_event(
+                    status_code=status_code,
+                    status=event_status,
+                    detail=detail,
+                )
+                if business_event is not None:
+                    await tracker.record(**business_event)
+            except Exception as analytics_exc:
+                sentry_sdk.capture_exception(analytics_exc)
 
-    return json.loads(plaintext.decode('utf-8'))
 
-app = FastAPI(lifespan=lifespan)
+@app.middleware("http")
+async def no_cache_middleware(request: Request, call_next):
+    try:
+        response = await call_next(request)
+    except Exception:
+        logging.exception("Unhandled exception reached no_cache_middleware")
+        response = JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"detail": "Erro interno do servidor."},
+        )
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
 
 
 @app.exception_handler(AdminAnalyticsValidationError)
@@ -119,9 +191,17 @@ async def admin_analytics_validation_exception_handler(
         content={"detail": exc.detail, "errors": exc.errors},
     )
 
-private_directory = Path("assets/public")
-private_directory.mkdir(parents=True, exist_ok=True)
-app.mount("/assets/public", StaticFiles(directory="assets/public"), name="public")
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    logging.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Erro interno do servidor."},
+    )
+
+PUBLIC_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/assets/public", StaticFiles(directory=str(PUBLIC_ASSETS_DIR)), name="public")
 
 
 app.add_middleware(
@@ -134,6 +214,13 @@ app.add_middleware(
 
 
 GeoJSONInput = Union[Feature, FeatureCollection]
+
+
+class LayerUploadPreviewPayload(BaseModel):
+    file_name: str
+    feature_count: int
+    geometry_types: list[str] = []
+    geojson: dict[str, Any] | None = None
 
 
 async def _save_raster_upload(
@@ -153,8 +240,19 @@ async def _save_raster_upload(
     return await controller.upload_raster(fd, file, file_path, raster_name, 4674)
 
 
+def _cookie_kwargs() -> dict:
+    """Return cookie security flags appropriate for the current environment.
+    In production/development (HTTPS) use Secure+Strict.
+    In local dev (HTTP) use non-Secure+Lax so browsers accept cookies over plain HTTP.
+    """
+    if os.getenv("ENVIRONMENT", "local") in ("production", "development"):
+        return {"httponly": True, "secure": True, "samesite": "strict"}
+    return {"httponly": True, "secure": False, "samesite": "lax"}
+
+
 @app.post("/token")
 async def login(
+    response: Response,
     password: Annotated[str, Body()],
     email: Annotated[EmailStr | None, Body()],
     controller: Annotated[AuthController, Depends(AuthController.inject_controller)]
@@ -166,6 +264,12 @@ async def login(
             content={"detail": 'Por favor clique no link do email de confirmação para realizar o login'},
             status_code=status.HTTP_401_UNAUTHORIZED
         )
+
+    access_max_age = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60)) * 60
+    refresh_max_age = int(os.getenv("REFRESH_TOKEN_EXPIRE_MINUTES", 1440)) * 60
+    ck = _cookie_kwargs()
+    response.set_cookie("access_token", token.access_token, max_age=access_max_age, **ck)
+    response.set_cookie("refresh_token", token.refresh_token, max_age=refresh_max_age, **ck)
 
     return token
 
@@ -181,11 +285,33 @@ async def check_token(
 
 @app.post('/refresh-token', response_model=Token)
 async def refresh_token(
-    refresh_token: Annotated[str, Body(embed=True)],
-    controller: Annotated[AuthController, Depends(AuthController.inject_controller)]
+    response: Response,
+    request: Request,
+    refresh_token: Annotated[str | None, Body(embed=True)] = None,
+    controller: Annotated[AuthController, Depends(AuthController.inject_controller)] = None
 ):
+    # Accept refresh token from body or from httpOnly cookie
+    token_value = refresh_token or request.cookies.get("refresh_token")
+    if not token_value:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido!")
 
-    return await controller.refresh_tokens(token=refresh_token)
+    new_tokens = await controller.refresh_tokens(token=token_value)
+
+    access_max_age = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60)) * 60
+    refresh_max_age = int(os.getenv("REFRESH_TOKEN_EXPIRE_MINUTES", 1440)) * 60
+    ck = _cookie_kwargs()
+    response.set_cookie("access_token", new_tokens.access_token, max_age=access_max_age, **ck)
+    response.set_cookie("refresh_token", new_tokens.refresh_token, max_age=refresh_max_age, **ck)
+
+    return new_tokens
+
+
+@app.post("/logout", status_code=status.HTTP_200_OK)
+async def logout(response: Response):
+    ck = _cookie_kwargs()
+    response.delete_cookie("access_token", samesite=ck["samesite"])
+    response.delete_cookie("refresh_token", samesite=ck["samesite"])
+    return {"detail": "Logout realizado com sucesso."}
 
 
 @app.get("/confirm-email/{temporary_user_id}")
@@ -226,12 +352,25 @@ async def update_users(
     return await controller.update_user(user_update, user=user)
 
 
-@app.get("/recovery-password/{user_email}", status_code=status.HTTP_200_OK)
-async def get_recovery_password(
-    user_email: str,
+@app.post("/recovery-password", status_code=status.HTTP_200_OK)
+@limiter.limit("5/minute")
+async def post_recovery_password(
+    request: Request,
+    user_email: Annotated[str, Body(embed=True)],
     controller: Annotated[AuthController, Depends(AuthController.inject_controller)]
 ):
-    return await controller.recovery_password(user_email)
+    await controller.recovery_password(user_email)
+    return {"detail": "Se o e-mail estiver cadastrado, você receberá um link de redefinição em breve."}
+
+
+@app.post("/reset-password", status_code=status.HTTP_200_OK)
+async def post_reset_password(
+    token: Annotated[str, Body()],
+    new_password: Annotated[str, Body()],
+    controller: Annotated[AuthController, Depends(AuthController.inject_controller)]
+):
+    await controller.reset_password(token, new_password)
+    return {"detail": "Senha redefinida com sucesso."}
 
 
 @app.post("/change-password", status_code=status.HTTP_200_OK)
@@ -256,7 +395,7 @@ async def post_process_geo_processing(
     if not has_permission:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
-    return await encrypt_data(await controller.process_geo_process(feature, raster_name, user.id.hex))
+    return await controller.process_geo_process(feature, raster_name, user.id.hex)
 
 
 @app.get("/process/raster/{raster_name}")
@@ -270,7 +409,7 @@ async def post_process_raster(
     if not has_permission:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
 
-    return await encrypt_data(await controller.process_raster(raster_name, user.id.hex))
+    return await controller.process_raster(raster_name, user.id.hex)
 
 
 @app.post("/process/dash-data/{energy_type}")
@@ -290,16 +429,10 @@ async def get_dash_data(
         results = []
         for single_feature in feature.features:
             result = await controller.dash_data(single_feature, energy_type)
-            results.append(await encrypt_data(result))
+            results.append(result)
         return results  # Return a list of encrypted results for each feature
 
-    return await encrypt_data(await controller.dash_data(feature, energy_type))
-
-
-@app.get("/sentry-debug")
-async def trigger_error():
-    division_by_zero = 1 / 0
-    return division_by_zero
+    return await controller.dash_data(feature, energy_type)
 
 
 @app.get("/geofiles/polygon/{table_name}")
@@ -318,9 +451,9 @@ async def get_geofiles_polygon(
 @app.get("/geofiles/raster/{z}/{x}/{y}/{table_name}")
 async def get_geofiles_raster(
     table_name: str,
-    x,
-    y,
-    z,
+    x: int,
+    y: int,
+    z: int,
     controller: Annotated[GeoFilesController, Depends(GeoFilesController.inject_controller)],
     has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("view_raster"))]
 ):
@@ -425,10 +558,17 @@ async def delete_file(
 
 @app.post("/anonymous", status_code=status.HTTP_201_CREATED)
 async def post_anonymous(
+    response: Response,
     ocupation: Annotated[OcupationEnum, Body(embed=True)],
     controller: Annotated[AuthController, Depends(AuthController.inject_controller)]
 ):
-    return await controller.create_anonymous_user(ocupation=ocupation)
+    token = await controller.create_anonymous_user(ocupation=ocupation)
+    access_max_age = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60)) * 60
+    refresh_max_age = int(os.getenv("REFRESH_TOKEN_EXPIRE_MINUTES", 1440)) * 60
+    ck = _cookie_kwargs()
+    response.set_cookie("access_token", token.access_token, max_age=access_max_age, **ck)
+    response.set_cookie("refresh_token", token.refresh_token, max_age=refresh_max_age, **ck)
+    return {"detail": "ok"}
 
 
 @app.post("/contact",
@@ -633,6 +773,7 @@ async def create_layer_group(group: LayerGroupCreate,
     status_code=status.HTTP_200_OK
 )
 async def create_layer(
+    request: Request,
     controller: Annotated[LayersController, Depends(LayersController.inject_controller)],
     name: Annotated[str, Form(...)],
     file: Annotated[UploadFile, File(...)],
@@ -657,7 +798,9 @@ async def create_layer(
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="JSON inválido")
 
-    return await controller.create_layer(media_data, file, file_icon)
+    result = await controller.create_layer(media_data, file, file_icon)
+    _bind_layer_event_context(request, result)
+    return result
 
 @app.put(
     "/layer/{id}",
@@ -667,6 +810,7 @@ async def create_layer(
 )
 async def update_layer(
     id: str,
+    request: Request,
     controller: Annotated[LayersController, Depends(LayersController.inject_controller)],
     name: Annotated[str, Form(...)],
     file: Annotated[UploadFile, File(...)],
@@ -691,7 +835,9 @@ async def update_layer(
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="JSON inválido")
 
-    return await controller.update_layer(media_data, file, file_icon, id)
+    result = await controller.update_layer(media_data, file, file_icon, id)
+    _bind_layer_event_context(request, result)
+    return result
 
 @app.get(
     "/layer-group",
@@ -821,7 +967,51 @@ async def get_layer_id(
     return await controller.get_layer_by_id(id)
 
 
-@app.post('/platform', response_model=models.Platform, status_code=status.HTTP_201_CREATED)
+@app.get(
+    "/layer/{layer_id}/data",
+    status_code=status.HTTP_200_OK,
+)
+async def get_layer_geojson_data(
+    layer_id: str,
+    controller: Annotated[LayersController, Depends(LayersController.inject_controller)],
+):
+    """Serve layer GeoJSON file for map display (tracked for analytics)."""
+    from fastapi.responses import FileResponse
+
+    layer = await controller.repository.get_layer_by_id(layer_id)
+    if not layer or not layer.path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Camada não encontrada")
+    file_path = resolve_storage_path(layer.path)
+    if file_path is None or not file_path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Arquivo da camada não encontrado")
+    return FileResponse(file_path, media_type="application/json")
+
+
+@app.post(
+    "/layer/upload-preview",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def track_layer_upload_preview(
+    payload: LayerUploadPreviewPayload,
+    request: Request,
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+):
+    tracker = getattr(request.state, "admin_analytics_tracker", None)
+    if tracker is not None:
+        tracker.bind_actor(user)
+
+    request.state.layer_event_context = {
+        "layer_name": payload.file_name,
+        "group_id": None,
+    }
+    request.state.layer_upload_details = {
+        "feature_count": payload.feature_count,
+        "geometry_types": sorted({geometry_type for geometry_type in payload.geometry_types if geometry_type}),
+    }
+    request.state.layer_preview_geojson = payload.geojson
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 async def create_platform(
     createPlatform: CreatePlatform, 
     user: models.User | models.AnonymousUser = Depends(AuthController.get_user_from_token),
@@ -834,10 +1024,9 @@ async def create_platform(
         return platform
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except RuntimeError as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    except (RuntimeError, Exception) as e:
+        logging.exception("Erro ao criar plataforma")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno do servidor.")
 
 
 @app.get('/platform', response_model=list[models.Platform])
@@ -855,8 +1044,9 @@ async def list_platform(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))# NÃO LOCALIZADO
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))# DADO INVÁLIDO
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))# Erro desconhecido
+    except Exception:
+        logging.exception("Erro ao listar plataformas")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno do servidor.")# Erro desconhecido
 
 
 @app.get("/admin-analytics/filter-options")
@@ -1001,10 +1191,28 @@ async def post_admin_analytics_export(
     user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
     controller: Annotated[AdminAnalyticsController, Depends(AdminAnalyticsController.inject_controller)],
     payload: dict = Body(...),
-):
+) -> StreamingResponse:
     await controller.assert_admin(user)
     export_request: AdminAnalyticsExportRequest = controller.parse_body(AdminAnalyticsExportRequest, payload)
-    return await controller.create_export(export_request)
+    return await controller.generate_export_file(export_request)
+
+
+@app.get("/admin-analytics/export/download")
+async def get_admin_analytics_export_download(
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    controller: Annotated[AdminAnalyticsController, Depends(AdminAnalyticsController.inject_controller)],
+    payload: str = Query(..., description="Base64-encoded JSON export request"),
+) -> StreamingResponse:
+    """Browser-navigation endpoint: cookies are sent automatically and Content-Disposition triggers
+    a native save dialog without needing a user-gesture-safe JS click."""
+    await controller.assert_admin(user)
+    try:
+        decoded = base64.b64decode(payload).decode("utf-8")
+        payload_dict = json.loads(decoded)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payload inválido.")
+    export_request: AdminAnalyticsExportRequest = controller.parse_body(AdminAnalyticsExportRequest, payload_dict)
+    return await controller.generate_export_file(export_request)
 
 
 @app.get("/admin-analytics/export/{export_id}")
@@ -1043,8 +1251,9 @@ async def getHeightsInPlatform(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))# NÃO LOCALIZADO
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))# DADO INVÁLIDO
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))# Erro desconhecido
+    except Exception:
+        logging.exception("Erro ao listar alturas da plataforma")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno do servidor.")# Erro desconhecido
 
 
 @app.post("/qualified_data/{id}", summary="Salvar dados mensais de uma plataforma", description=
@@ -1088,8 +1297,11 @@ async def upload_qualified_data(
         # asyncio.create_task(controller.create_qualified_data_month(tmp_path, id))
         background_tasks.add_task( controller.create_qualified_data_month, tmp_path, id) #Teste local
         return JSONResponse( status_code=status.HTTP_202_ACCEPTED, content={"status": "processando", "message": f"O arquivo '{file.filename}' foi recebido e está sendo processado em segundo plano."})
-    except Exception as e:
+    except ValueError as e:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))# DADO INVÁLIDO
+    except Exception:
+        logging.exception("Erro ao processar arquivo CSV")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Arquivo CSV inválido ou incompatível.")# Erro desconhecido
 
 
 @app.delete("/qualified_data/{id}" ,  summary="Deleta os dados qualificados de uma plataforma entre duas datas e horários.")
@@ -1110,8 +1322,9 @@ async def delete_qualified_data(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))# NÃO LOCALIZADO
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))# DADO INVÁLIDO
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))# Erro desconhecido
+    except Exception:
+        logging.exception("Erro ao deletar dados qualificados")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno do servidor.")# Erro desconhecido
 
 
 @app.get("/time-series/platform/{id}" ,  summary="Série temporal de um campo de uma estação entre duas datas e horários.")
@@ -1133,8 +1346,9 @@ async def time_series_list_data_by_field_between_datetimes(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))# NÃO LOCALIZADO
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))# DADO INVÁLIDO
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))# Erro desconhecido
+    except Exception:
+        logging.exception("Erro ao gerar série temporal")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno do servidor.")# Erro desconhecido
 
 
 @app.get("/wind-rose/platform/{id}" ,  summary="Rosa dos ventos com base nos dados de uma plataforma entre duas datas e horários.")
@@ -1156,8 +1370,9 @@ async def wind_rose_data_between_datetimes(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))# NÃO LOCALIZADO
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))# DADO INVÁLIDO
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))# Erro desconhecido
+    except Exception:
+        logging.exception("Erro ao gerar rosa dos ventos")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno do servidor.")# Erro desconhecido
 
 
 @app.get("/vertical-profile/platform/{id}" ,  summary="Perfil vertical da velocidade horizontal do vento em uma plataforma.")
@@ -1177,8 +1392,9 @@ async def vertical_profile_data_between_datetimes(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))# NÃO LOCALIZADO
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))# DADO INVÁLIDO
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))# Erro desconhecido
+    except Exception:
+        logging.exception("Erro ao calcular perfil vertical")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno do servidor.")# Erro desconhecido
 
 
 @app.get("/diurnal-profile/platform/{id}" ,  summary="Perfil diurno de um campo específico de uma plataforma entre duas datas.")
@@ -1199,5 +1415,6 @@ async def diurnal_profile_by_field_(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))# NÃO LOCALIZADO
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))# DADO INVÁLIDO
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))# Erro desconhecido
+    except Exception:
+        logging.exception("Erro ao calcular perfil diurno")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno do servidor.")# Erro desconhecido

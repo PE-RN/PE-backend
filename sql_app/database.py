@@ -1,14 +1,21 @@
 from os import getenv
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy.pool import NullPool
 from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-async_engine = create_async_engine(
-    getenv('DATABASE_URL', "postgresql+asyncpg://postgres:postgres@postgresql:5432/atlas"),
-    pool_size=20,
-    max_overflow=10
-)
+database_url = getenv('DATABASE_URL', "postgresql+asyncpg://postgres:postgres@postgresql:5432/atlas")
+disable_db_pool = getenv("DATABASE_DISABLE_POOL", "false").lower() in {"1", "true", "yes"}
+
+engine_kwargs = {}
+if disable_db_pool:
+    engine_kwargs["poolclass"] = NullPool
+else:
+    engine_kwargs["pool_size"] = 20
+    engine_kwargs["max_overflow"] = 10
+
+async_engine = create_async_engine(database_url, **engine_kwargs)
 SessionLocal = async_sessionmaker(
     autocommit=False, autoflush=False, bind=async_engine, class_=AsyncSession)
 

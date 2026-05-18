@@ -7,6 +7,22 @@ from sql_app.database import get_db
 from schemas.media import CreatePdf, CreateVideo
 import shutil
 
+# Allowlist: extension → expected MIME type
+_ALLOWED_EXTENSIONS: dict[str, str] = {
+    ".pdf":  "application/pdf",
+    ".jpg":  "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png":  "image/png",
+    ".gif":  "image/gif",
+    ".webp": "image/webp",
+    ".mp4":  "video/mp4",
+    ".webm": "video/webm",
+}
+
+# 20 MB hard cap — reading _MAX_UPLOAD_BYTES+1 lets us detect over-sized
+# uploads without buffering the entire file.
+_MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+
 
 class MediaController:
 
@@ -21,17 +37,50 @@ class MediaController:
 
     async def create_file(self, pdf: CreatePdf, file: UploadFile | None):
         if file:
+            # --- Extension allowlist ---
+            file_extension = Path(file.filename or "").suffix.lower()
+            if file_extension not in _ALLOWED_EXTENSIONS:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Tipo de ficheiro não permitido.",
+                )
+
+            # --- MIME type validation ---
+            declared_mime = (file.content_type or "").split(";")[0].strip().lower()
+            expected_mime = _ALLOWED_EXTENSIONS[file_extension]
+            if declared_mime and declared_mime != expected_mime:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Tipo de conteúdo não corresponde à extensão.",
+                )
+
+            # --- File size limit (reads at most _MAX_UPLOAD_BYTES+1 bytes) ---
+            content = await file.read(_MAX_UPLOAD_BYTES + 1)
+            if len(content) > _MAX_UPLOAD_BYTES:
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail="Arquivo muito grande. Limite: 20 MB.",
+                )
+
+            # --- Path traversal prevention ---
+            # Path().name strips any directory component; lstrip('.') removes
+            # leading dots so names like '..' become empty strings.
+            safe_stem = Path(pdf.path).name.lstrip(".")
+            if not safe_stem:
+                safe_stem = "upload"
+
             private_directory = Path("assets/public")
             private_directory.mkdir(parents=True, exist_ok=True)
 
-            file_extension = Path(file.filename).suffix
-            file_location = private_directory / f"{pdf.path}{file_extension}"
+            file_location = private_directory / f"{safe_stem}{file_extension}"
 
             try:
-                with open(file_location, "wb") as buffer:
-                    shutil.copyfileobj(file.file, buffer)
-            except Exception as e:
-                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error saving file: {str(e)}")
+                file_location.write_bytes(content)
+            except Exception:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Erro ao salvar arquivo.",
+                )
 
             pdf.path = str(file_location)
 

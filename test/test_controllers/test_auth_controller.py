@@ -343,11 +343,12 @@ async def test_confirm_email_without_temporary_user(auth_repository):
     auth_repository.get_temporary_user_by_id = AsyncMock(return_value=False)
 
     # Act
-    with pytest.raises(HTTPException, match="Usuário não encontrado!") as error:
-        await auth_controller.confirm_email(uuid4())
+    response = await auth_controller.confirm_email(uuid4())
 
     # Assert
-    assert error.value.status_code == 404
+    assert isinstance(response, RedirectResponse)
+    assert response.status_code == status.HTTP_302_FOUND
+    assert "error=Usu%C3%A1rio%20n%C3%A3o%20encontrado!" in response.headers["location"]
 
 
 @pytest.mark.anyio

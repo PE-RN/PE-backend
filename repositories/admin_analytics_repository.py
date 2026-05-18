@@ -97,6 +97,49 @@ class AdminAnalyticsRepository:
         result = await self.db.exec(statement)
         return result.first()
 
+    async def create_event(
+        self,
+        domain: str,
+        event_type: str,
+        label: str,
+        occurred_at: datetime,
+        *,
+        actor_user_id: UUID | None = None,
+        actor_name: str | None = None,
+        target_type: str | None = None,
+        target_id: str | None = None,
+        status: str | None = None,
+        endpoint_key: str | None = None,
+        method: str | None = None,
+        status_code: int | None = None,
+        latency_ms: int | None = None,
+        file_id: UUID | None = None,
+        layer_id: UUID | None = None,
+        payload: dict[str, object] | None = None,
+    ) -> models.AdminAnalyticsEvent:
+        db_event = models.AdminAnalyticsEvent(
+            domain=domain,
+            event_type=event_type,
+            label=label,
+            occurred_at=occurred_at,
+            actor_user_id=actor_user_id,
+            actor_name=actor_name,
+            target_type=target_type,
+            target_id=target_id,
+            status=status,
+            endpoint_key=endpoint_key,
+            method=method,
+            status_code=status_code,
+            latency_ms=latency_ms,
+            file_id=file_id,
+            layer_id=layer_id,
+            payload=payload,
+        )
+        self.db.add(db_event)
+        await self.db.commit()
+        await self.db.refresh(db_event)
+        return db_event
+
     async def create_export(
         self,
         domain: str,

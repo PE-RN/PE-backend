@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import csv
+import io
 import json
 from collections import Counter, defaultdict
 from datetime import datetime, time, timedelta, timezone
@@ -202,6 +204,23 @@ class AdminAnalyticsController:
                 "admin_operations": len(current_admin_events),
                 "system_health": len(current_system_events),
             },
+            timeseries=self._build_timeseries(
+                [event.occurred_at for event in current_events],
+                query,
+                [event.occurred_at for event in previous_events],
+            ),
+            breakdowns=[
+                self._build_breakdown(
+                    "domain",
+                    "Atividade por modulo",
+                    Counter(event.domain for event in current_events),
+                ),
+                self._build_breakdown(
+                    "event_type",
+                    "Tipos de eventos",
+                    Counter(event.event_type for event in current_events),
+                ),
+            ],
             alerts=self._build_overview_alerts(current_events),
             recent_activity=self._build_activity_events(current_events, user_map),
             last_updated_at=self._last_updated_at(current_events),
@@ -293,14 +312,14 @@ class AdminAnalyticsController:
             summary_cards=[
                 self._build_summary_card("login_count", "Logins", user_row.login_count, None, False),
                 self._build_summary_card("downloads_count", "Downloads", user_row.downloads_count, None, False),
-                self._build_summary_card("map_actions_count", "Acoes em mapa", user_row.map_actions_count, None, False),
+                self._build_summary_card("map_actions_count", "Ações em mapa", user_row.map_actions_count, None, False),
             ],
             timeseries=self._build_timeseries([event.occurred_at for event in user_events], query),
             breakdowns=[
-                self._build_breakdown("institution", "Instituicao", Counter([user.institution or "Não informado"])),
-                self._build_breakdown("occupation", "Ocupacao", Counter([user.ocupation or "Não informado"])),
+                self._build_breakdown("institution", "Instituição", Counter([user.institution or "Não informado"])),
+                self._build_breakdown("occupation", "Ocupação", Counter([user.ocupation or "Não informado"])),
                 self._build_breakdown("education", "Escolaridade", Counter([user.education or "Não informado"])),
-                self._build_breakdown("gender", "Genero", Counter([user.gender or "Não informado"])),
+                self._build_breakdown("gender", "Gênero", Counter([user.gender or "Não informado"])),
             ],
             recent_events=self._build_activity_events(user_events, self._user_map([user])),
             last_updated_at=self._last_updated_at(user_events, fallback=user.updated_at),
@@ -355,7 +374,7 @@ class AdminAnalyticsController:
             breakdowns=[
                 self._build_breakdown("category", "Categorias", Counter(row.category or "Não informado" for row in rows)),
                 self._build_breakdown("sub_category", "Subcategorias", Counter(row.sub_category or "Não informado" for row in rows)),
-                self._build_breakdown("action", "Acoes", Counter(event.event_type for event in current_events)),
+                self._build_breakdown("action", "Ações", Counter(event.event_type for event in current_events)),
             ],
             table=AdminAnalyticsPaginatedFiles(**paginated),
             last_updated_at=self._last_updated_at(current_events),
@@ -450,10 +469,10 @@ class AdminAnalyticsController:
         return AdminAnalyticsMapUsageResponse(
             summary_cards=[
                 self._build_summary_card("layers_total", "Camadas", len(rows), len(previous_rows), query.compare_previous),
-                self._build_summary_card("views_total", "Visualizacoes", len(current_events), len(previous_events), query.compare_previous),
+                self._build_summary_card("views_total", "Visualizações", len(current_events), len(previous_events), query.compare_previous),
                 self._build_summary_card(
                     "unique_users",
-                    "Usuarios unicos",
+                    "Usuários únicos",
                     len({self._uuid_to_str(event.actor_user_id) for event in current_events if event.actor_user_id}),
                     len({self._uuid_to_str(event.actor_user_id) for event in previous_events if event.actor_user_id}),
                     query.compare_previous,
@@ -466,7 +485,7 @@ class AdminAnalyticsController:
             ),
             breakdowns=[
                 self._build_breakdown("layer_group", "Grupos de camadas", Counter(row.group_name or "Sem grupo" for row in rows)),
-                self._build_breakdown("action", "Acoes", Counter(event.event_type for event in current_events)),
+                self._build_breakdown("action", "Ações", Counter(event.event_type for event in current_events)),
                 self._build_breakdown(
                     "theme",
                     "Temas",
@@ -512,10 +531,10 @@ class AdminAnalyticsController:
                 created_at=self._to_utc(layer.created_at),
             ),
             summary_cards=[
-                self._build_summary_card("views_total", "Visualizacoes", len(layer_events), None, False),
+                self._build_summary_card("views_total", "Visualizações", len(layer_events), None, False),
                 self._build_summary_card(
                     "unique_users",
-                    "Usuarios unicos",
+                    "Usuários únicos",
                     len({self._uuid_to_str(event.actor_user_id) for event in layer_events if event.actor_user_id}),
                     None,
                     False,
@@ -542,7 +561,7 @@ class AdminAnalyticsController:
 
         return AdminAnalyticsAdminOperationsResponse(
             summary_cards=[
-                self._build_summary_card("operations_total", "Operacoes", len(rows), len(previous_rows), query.compare_previous),
+                self._build_summary_card("operations_total", "Operações", len(rows), len(previous_rows), query.compare_previous),
                 self._build_summary_card(
                     "failed_operations",
                     "Falhas",
@@ -564,7 +583,7 @@ class AdminAnalyticsController:
                 [event.occurred_at for event in previous_events],
             ),
             breakdowns=[
-                self._build_breakdown("action", "Acoes", Counter(row.action for row in rows)),
+                self._build_breakdown("action", "Ações", Counter(row.action for row in rows)),
                 self._build_breakdown("target_type", "Tipos de alvo", Counter(row.target_type for row in rows)),
                 self._build_breakdown("status", "Status", Counter(row.status for row in rows)),
             ],
@@ -685,30 +704,98 @@ class AdminAnalyticsController:
             last_updated_at=self._last_updated_at(endpoint_events),
         )
 
-    async def create_export(self, export_request: AdminAnalyticsExportRequest) -> AdminAnalyticsExportResponse:
-        generated_at = datetime.utcnow()
-        expires_at = generated_at + timedelta(days=1)
-        export_name = f"analytics-{export_request.domain}-{generated_at.date().isoformat()}.{export_request.format}"
-        content_type = {
-            "csv": "text/csv",
-            "json": "application/json",
-            "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        }[export_request.format]
+    async def generate_export_file(self, export_request: AdminAnalyticsExportRequest):
+        from fastapi.responses import StreamingResponse
+        import openpyxl
 
-        export = await self.repository.create_export(
-            domain=export_request.domain,
-            format_name=export_request.format,
-            status="ready",
-            name=export_name,
-            path=f"/exports/{export_name}",
-            content_type=content_type,
-            generated_at=generated_at,
-            expires_at=expires_at,
-            detail=None,
-            filters=export_request.filters,
-            columns=export_request.columns,
-        )
-        return self._build_export_response(export)
+        domain = export_request.domain
+        # Build the query for the target domain, forcing full-page fetch (no pagination)
+        base_filters = {**export_request.filters, "page": 1, "page_size": 10_000, "compare_previous": False}
+
+        _DOMAIN_MAP: dict[str, tuple[type[BaseModel], Any]] = {
+            "user-activity": (AdminAnalyticsUserActivityQuery, self.get_user_activity),
+            "file-usage": (AdminAnalyticsFileUsageQuery, self.get_file_usage),
+            "map-usage": (AdminAnalyticsMapUsageQuery, self.get_map_usage),
+            "admin-operations": (AdminAnalyticsAdminOperationsQuery, self.get_admin_operations),
+            "system-health": (AdminAnalyticsSystemHealthQuery, self.get_system_health),
+            "overview": (AdminAnalyticsOverviewQuery, None),
+        }
+
+        if domain not in _DOMAIN_MAP:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Domínio inválido: {domain}")
+
+        query_class, method = _DOMAIN_MAP[domain]
+        try:
+            query = query_class.model_validate(base_filters)
+        except Exception:
+            query = query_class()
+
+        # Fetch rows
+        if domain == "overview":
+            response_data = await self.get_overview(query)
+            rows = [event.model_dump() for event in response_data.recent_activity]
+        else:
+            response_data = await method(query)
+            rows = [row.model_dump() for row in response_data.table.rows]
+
+        # Apply column filter if the caller specified columns
+        allowed = set(export_request.columns) if export_request.columns else None
+        if allowed and rows:
+            rows = [{k: v for k, v in row.items() if k in allowed} for row in rows]
+
+        # Ensure there is always at least an empty header row
+        if not rows:
+            rows = [{}]
+
+        export_name = f"analytics-{domain}-{datetime.utcnow().date().isoformat()}.{export_request.format}"
+
+        def _cell(value: Any) -> str:
+            if value is None:
+                return ""
+            if isinstance(value, datetime):
+                return value.isoformat()
+            return str(value)
+
+        if export_request.format == "csv":
+            fieldnames = list(rows[0].keys())
+            buf = io.StringIO()
+            writer = csv.DictWriter(buf, fieldnames=fieldnames, extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows({k: _cell(v) for k, v in row.items()} for row in rows)
+            content = buf.getvalue().encode("utf-8-sig")  # BOM so Excel opens correctly
+            return StreamingResponse(
+                io.BytesIO(content),
+                media_type="text/csv",
+                headers={"Content-Disposition": f'attachment; filename="{export_name}"'},
+            )
+
+        if export_request.format == "xlsx":
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = domain[:31]  # sheet name max 31 chars
+            cols = list(rows[0].keys())
+            ws.append(cols)
+            for row in rows:
+                ws.append([_cell(row.get(col)) for col in cols])
+            buf = io.BytesIO()
+            wb.save(buf)
+            buf.seek(0)
+            return StreamingResponse(
+                buf,
+                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                headers={"Content-Disposition": f'attachment; filename="{export_name}"'},
+            )
+
+        if export_request.format == "json":
+            serialized = [{k: _cell(v) for k, v in row.items()} for row in rows]
+            content = json.dumps(serialized, ensure_ascii=False).encode("utf-8")
+            return StreamingResponse(
+                io.BytesIO(content),
+                media_type="application/json",
+                headers={"Content-Disposition": f'attachment; filename="{export_name}"'},
+            )
+
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Formato não suportado: {export_request.format}")
 
     async def get_export(self, export_id: str) -> AdminAnalyticsExportResponse:
         export = await self.repository.get_export_by_id(export_id)

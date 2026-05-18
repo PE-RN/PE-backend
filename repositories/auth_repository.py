@@ -1,3 +1,7 @@
+from datetime import datetime, timezone
+from uuid import UUID
+
+from sqlalchemy import and_
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -68,6 +72,47 @@ class AuthRepository:
         statement = select(models.AnonymousUser).filter_by(id=anonymous_user_id).fetch(1)
         anonymous_users = await self.db.exec(statement)
         return anonymous_users.first()
+
+    async def get_user_by_id(self, user_id: UUID) -> models.User | None:
+
+        statement = select(models.User).filter_by(id=user_id).fetch(1)
+        result = await self.db.exec(statement)
+        return result.first()
+
+    async def create_password_reset_token(
+        self, user_id: UUID, token_hash: str, expires_at: datetime
+    ) -> models.PasswordResetToken:
+
+        token = models.PasswordResetToken(
+            user_id=user_id, token_hash=token_hash, expires_at=expires_at
+        )
+        self.db.add(token)
+        await self.db.commit()
+        await self.db.refresh(token)
+        return token
+
+    async def get_valid_password_reset_token(
+        self, token_hash: str
+    ) -> models.PasswordResetToken | None:
+
+        now = datetime.now(timezone.utc)
+        statement = select(models.PasswordResetToken).where(
+            and_(
+                models.PasswordResetToken.token_hash == token_hash,
+                models.PasswordResetToken.used == False,
+                models.PasswordResetToken.expires_at > now,
+            )
+        ).fetch(1)
+        result = await self.db.exec(statement)
+        return result.first()
+
+    async def mark_password_reset_token_used(
+        self, token: models.PasswordResetToken
+    ) -> None:
+
+        token.used = True
+        self.db.add(token)
+        await self.db.commit()
 
     async def check_permission(self, user: models.User, permission_name: str) -> bool:
         query = (

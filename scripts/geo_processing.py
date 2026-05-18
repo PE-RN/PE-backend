@@ -2,64 +2,48 @@ import json
 from typing import TYPE_CHECKING
 
 import numpy as np
-from asyncer import asyncify
+from shapely.geometry import shape, mapping
 
 from schemas.feature import Feature
+from scripts.rasterio_support import ensure_rasterio_proj_data
 
 if TYPE_CHECKING:
-    from osgeo.gdal import Dataset
+    from typing import Any
 
 
-async def clip_and_get_pixel_values(feature: Feature, src_ds: "Dataset", raster_name: str):
+async def clip_and_get_pixel_values(feature: Feature, raster_bytes: bytes, raster_name: str):
 
-    from osgeo import gdal, ogr, osr
+    from rasterio.io import MemoryFile
+    from rasterio.mask import mask
 
-    if not src_ds:
+    ensure_rasterio_proj_data()
+
+    if not raster_bytes:
         raise RuntimeError("Could not open source dataset")
-
-    srcband = src_ds.GetRasterBand(1)
 
     pixel_values_list = []
 
-    geometry = json.dumps(feature.geometry.model_dump())
-    # Convert GeoJSON to an OGR geometry
-    geom = await asyncify(ogr.CreateGeometryFromJson)(geometry)
+    geometry = shape(feature.geometry.model_dump())
 
-    # Apply a buffer to the geometry, specify the distance of the buffer in the units of the spatial reference
     if raster_name.split('_')[0] == 'wind':
-        buffered_geom = await asyncify(geom.Buffer)(.35356/111.11) # .35356 = .25 * sqrt(2) ; .25 = distancia entre pixels / 2 ; sqrt(2) = diagonal do quadrado
+        buffered_geom = geometry.buffer(.35356/111.11) # .35356 = .25 * sqrt(2) ; .25 = distancia entre pixels / 2 ; sqrt(2) = diagonal do quadrado
     elif raster_name.split('_')[0] == 'ghi':
-        buffered_geom = await asyncify(geom.Buffer)(.35356/111.11)
-    # Prepare an in-memory raster for the mask
-    mem_driver = await asyncify(gdal.GetDriverByName)('MEM')
-    mask_ds = mem_driver.Create('', src_ds.RasterXSize, src_ds.RasterYSize, 1, gdal.GDT_Byte)
-    mask_ds.SetGeoTransform(src_ds.GetGeoTransform())
-    mask_ds.SetProjection(src_ds.GetProjection())
+        buffered_geom = geometry.buffer(.35356/111.11)
+    else:
+        buffered_geom = geometry
 
-    # Prepare an in-memory vector layer to hold the buffered geometry
-    geom_srs = osr.SpatialReference()
-    await asyncify(geom_srs.ImportFromEPSG)(4674)  # adjust as needed
-    driver = await asyncify(ogr.GetDriverByName)('Memory')
-    geom_ds = await asyncify(driver.CreateDataSource)('geom_ds')
-    geom_layer = await asyncify(geom_ds.CreateLayer)('geom_layer', srs=geom_srs)
-    geom_defn = geom_layer.GetLayerDefn()
-    geom_feature = ogr.Feature(geom_defn)
-    geom_feature.SetGeometry(buffered_geom)
-    await asyncify(geom_layer.CreateFeature)(geom_feature)
+    with MemoryFile(raster_bytes) as memory_file:
+        with memory_file.open() as source_dataset:
+            nodata_value = source_dataset.nodata if source_dataset.nodata is not None else -9999
+            masked_array, _ = mask(
+                source_dataset,
+                [mapping(buffered_geom)],
+                crop=False,
+                filled=False,
+            )
 
-    # Rasterize directly using the buffered geometry
-    await asyncify(gdal.RasterizeLayer)(mask_ds, [1], geom_layer, burn_values=[1])
-
-    # Create a masked array
-    src_array = await asyncify(srcband.ReadAsArray)()
-    raster_band = await asyncify(mask_ds.GetRasterBand)(1)
-    mask_array = await asyncify(raster_band.ReadAsArray)()
-    masked_array = np.ma.masked_where(mask_array == 0, src_array)
-
-    # Filter out specific pixel values, e.g., -9999
-    filtered_array = np.ma.masked_equal(masked_array, -9999)
-
-    # Extract pixel values excluding -9999
+    band = np.ma.masked_invalid(masked_array[0])
+    filtered_array = np.ma.masked_equal(band, nodata_value)
     pixel_values = filtered_array.compressed().tolist()
     pixel_values_sorted_desc = sorted(pixel_values, reverse=True)
     pixel_values_list.append(pixel_values_sorted_desc)

@@ -7,7 +7,7 @@ from sqlalchemy import pool
 from alembic import context
 
 from sqlmodel import SQLModel
-from sql_app.models import GroupPermissionLink, Group, Permission, TemporaryUser, User, AnonymousUser, LogsEmail, PdfFile, Video, Feedback, Geodata, GeoJsonData
+from sql_app.models import GroupPermissionLink, Group, Permission, TemporaryUser, User, AnonymousUser, LogsEmail, PdfFile, Video, Feedback, Geodata, GeoJsonData, PasswordResetToken
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
