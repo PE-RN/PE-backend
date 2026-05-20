@@ -1012,6 +1012,10 @@ async def track_layer_upload_preview(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@app.post("/platform",
+    response_model=models.Platform,
+    status_code=status.HTTP_201_CREATED
+)
 async def create_platform(
     createPlatform: CreatePlatform, 
     user: models.User | models.AnonymousUser = Depends(AuthController.get_user_from_token),
