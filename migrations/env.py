@@ -8,28 +8,21 @@ from alembic import context
 
 from sqlmodel import SQLModel
 
-from settings import SYNC_DATABASE_URL
-
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
-
-DEFAULT_SYNC_DATABASE_URL = "postgresql+psycopg2://postgres:postgres@postgresql:5432/atlas"
-
 
 def get_alembic_database_url() -> str:
     database_url = getenv("SYNC_DATABASE_URL")
     if database_url:
         return database_url
 
-    render_database_url = getattr(SYNC_DATABASE_URL, "render_as_string", None)
+    render_database_url = getattr(database_url, "render_as_string", None)
     if callable(render_database_url):
         return render_database_url(hide_password=False)
 
-    if SYNC_DATABASE_URL:
-        return str(SYNC_DATABASE_URL)
-
-    return DEFAULT_SYNC_DATABASE_URL
+    if database_url:
+        return str(database_url)
 
 
 ALEMBIC_DATABASE_URL = get_alembic_database_url()
