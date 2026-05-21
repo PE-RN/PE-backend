@@ -66,6 +66,8 @@ class LayersController:
 
         popup_path = _public_asset_path("jsons", "popups_fields.json")
         style_path = _public_asset_path("jsons", "layers_style.json")
+        existing_popup = {}
+        existing_style = {}
 
         if popup_path.exists():
             with open(popup_path, "r", encoding="utf-8") as f:
@@ -130,14 +132,19 @@ class LayersController:
             for key, value in properties.items():
                 if key in fields["fields"].keys():
                     data = fields["fields"][key]
-                    fields_popup[data.get("title", key)] = {"property": key, "unit": data.get("unit", ""), "decimal": data.get("decimal", 0)}
+                    fields_popup[data.get("title", key)] = {
+                        "property": key,
+                        "unit": data.get("unit", ""),
+                        "decimals": data.get("decimals", data.get("decimal", 0)),
+                    }
 
         new_popup = {
             layer_name: {
                 "title": fields["title"],
                 "fields": fields_popup,
                 "titleProperty": fields["titleProperty"],
-                "tooltipOffset": [0, -22]
+                "tooltipOffset": [0, -22],
+                "btns": fields["btns"] if "btns" in fields else [],
             }
         }
 
@@ -151,6 +158,9 @@ class LayersController:
                     existing_data = {}
         else:
             existing_data = {}
+
+        if "btns" not in fields and layer_name in existing_data:
+            new_popup[layer_name]["btns"] = existing_data[layer_name].get("btns", [])
 
         existing_data.update(new_popup)
 

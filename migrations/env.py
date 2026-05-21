@@ -1,8 +1,10 @@
 from os import getenv
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
+from dotenv import find_dotenv, load_dotenv
+from sqlalchemy import create_engine
 from sqlalchemy import pool
+from sqlalchemy.engine import URL, make_url
 
 from alembic import context
 
@@ -13,8 +15,40 @@ from sql_app.models import GroupPermissionLink, Group, Permission, TemporaryUser
 # access to the values within the .ini file in use.
 config = context.config
 
-DB_PATH = str(getenv('SYNC_DATABASE_URL', "postgresql+psycopg2://postgres:postgres@postgresql:5432/atlas"))
-config.set_main_option('sqlalchemy.url', DB_PATH)
+
+def _load_environment() -> None:
+    dotenv_path = find_dotenv(usecwd=True)
+    if not dotenv_path:
+        return
+
+    try:
+        load_dotenv(dotenv_path)
+    except UnicodeDecodeError:
+        # Some local Windows setups still persist .env files in ANSI/latin-1.
+        load_dotenv(dotenv_path, encoding="latin-1")
+
+
+def _resolve_sync_database_url() -> URL:
+    raw_url = (
+        getenv("SYNC_DATABASE_URL")
+        or getenv("DATABASE_URL")
+        or "postgresql+psycopg2://postgres:postgres@postgresql:5432/atlas"
+    )
+    url = make_url(str(raw_url))
+
+    drivername = url.drivername
+    if drivername in {"postgres", "postgresql"}:
+        return url.set(drivername="postgresql+psycopg2")
+
+    if drivername.startswith("postgresql+") and drivername != "postgresql+psycopg2":
+        return url.set(drivername="postgresql+psycopg2")
+
+    return url
+
+
+_load_environment()
+SYNC_DATABASE_URL = _resolve_sync_database_url()
+config.set_main_option("sqlalchemy.url", SYNC_DATABASE_URL.render_as_string(hide_password=False))
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -64,11 +98,7 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
+    connectable = create_engine(SYNC_DATABASE_URL, poolclass=pool.NullPool)
 
     with connectable.connect() as connection:
         context.configure(

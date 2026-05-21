@@ -318,31 +318,57 @@ class PasswordResetToken(SQLModel, table=True):
     created_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
 
 
-class Platform(SQLModel, table=True):
-    __tablename__ = 'platform'
+class DataStation(SQLModel, table=True):
+    __tablename__ = 'data_station'
     id: UUID = Field( sa_column=Column(pg.UUID, primary_key=True, unique=True, default=uuid4))
     name: str = Field(index=True, unique=True, nullable=False)
-    sensor_height: float| None = Field() # Altura do sensor em metros
-    
-    qualified_data: list["QualifiedData"] = Relationship(back_populates="platform")
+    sensor_height: float | None = Field(default=None) # Altura do sensor em metros
+    type: UUID = Field(foreign_key="station_type.id", index=True, nullable=False)
+    layer_id: UUID | None = Field(default=None, foreign_key="Layer.id", index=True)
+    station_type_ref: Optional["StationType"] = Relationship(back_populates="stations")
+    lidar_data: list["LidarStationData"] = Relationship(back_populates="station")
+    solarimetric_data: list["SolarimetricStationData"] = Relationship(back_populates="station")
+
+class StationType(SQLModel, table=True):
+    __tablename__ = 'station_type'
+    id: UUID = Field( sa_column=Column(pg.UUID, primary_key=True, unique=True, default=uuid4))
+    name: str = Field(index=True, unique=True, nullable=False)
+    stations: list["DataStation"] = Relationship(back_populates="station_type_ref")
 
 
-class QualifiedData(SQLModel, table=True):
-    __tablename__ = 'qualified_data'
-    id: UUID = Field( sa_column=Column(pg.UUID, primary_key=True, unique=True, default=uuid4) )# id: int | None = Field(default=None, primary_key=True)
-    dt: datetime = Field(index=True) #Time and Date
-    m_temp  : float =  Field()  # Met Air Temperature  # Temperatura do ar
-    m_pres : float =  Field()  # Met Pressure # Pressão
-    m_wspd: float =  Field() # Met Wind Speed # Velocidade do vento
-    m_wdir: float =  Field()#Met Wind Direction # Direção do Vento
-    height: int =  Field(index=True)  # Height (m) #ALTURA em M
-    h_spd: float =  Field(index=True) # Horizontal Wind Speed #Velocidade média do Vento Horizontal
-    ti : float =  Field() # Turbulence Intensity # Intensidade da turbulência
-    wdir: float =  Field(index=True)# Wind Direction # Direção do Vento
+class LidarStationData(SQLModel, table=True):
+    __tablename__ = 'lidar_station_data'
+    id: UUID = Field( sa_column=Column(pg.UUID, primary_key=True, unique=True, default=uuid4) ) # id: int | None = Field(default=None, primary_key=True)
+    dt: datetime = Field(index=True)    #Time and Date
+    m_temp  : float =  Field()          # Met Air Temperature  # Temperatura do ar
+    m_pres : float =  Field()           # Met Pressure # Pressão
+    m_wspd: float =  Field()            # Met Wind Speed # Velocidade do vento
+    m_wdir: float =  Field()            # Met Wind Direction # Direção do Vento
+    height: int =  Field(index=True)    # Height (m) #ALTURA em M
+    h_spd: float =  Field(index=True)   # Horizontal Wind Speed #Velocidade média do Vento Horizontal
+    ti : float =  Field()               # Turbulence Intensity # Intensidade da turbulência
+    wdir: float =  Field(index=True)    # Wind Direction # Direção do Vento
 
-    plat_id: UUID = Field(foreign_key="platform.id", index=True, nullable=False)
-    __table_args__ = ( UniqueConstraint("dt", "plat_id", "height", name="uq_qualified_data_datetime_plat_id_height"), )
-    platform: Platform = Relationship(back_populates="qualified_data")
+    station_id: UUID = Field(foreign_key="data_station.id", index=True, nullable=False)
+    __table_args__ = ( UniqueConstraint("dt", "station_id", "height", name="uq_lidar_station_data_datetime_station_id_height"), )
+    station: DataStation = Relationship(back_populates="lidar_data")
+
+
+class SolarimetricStationData(SQLModel, table=True):
+    __tablename__ = 'solarimetric_stations'
+    id: UUID = Field( sa_column=Column(pg.UUID, primary_key=True, unique=True, default=uuid4) ) # id: int | None = Field(default=None, primary_key=True)
+    dt: datetime = Field(index=True)    #Time and Date
+    ghi  : float =  Field()             # Global Horizontal Irradiance  # Irradiância Global Horizontal
+    hum : float =  Field()              # Met humidity # Umidade
+    temp: float =  Field()              # Met temperature # Temperatura
+    vel: float =  Field()               # Met Wind Speed # Velocidade do Vento
+
+    station_id: UUID = Field(foreign_key="data_station.id", index=True, nullable=False)
+    __table_args__ = ( UniqueConstraint("dt", "station_id", name="uq_solarimetric_stations_datetime_station_id"), )
+    station: DataStation = Relationship(back_populates="solarimetric_data")
+
+
+SolarStationData = SolarimetricStationData
 
 
 class AdminAnalyticsEvent(SQLModel, table=True):

@@ -48,7 +48,7 @@ from schemas.layers import LayerGroupCreate, LayerCreate
 from schemas.feature import Feature
 from schemas.featureCollection import FeatureCollection
 from schemas.feedback import FeedbackCreate
-from schemas.platform_wind import CreatePlatform
+from schemas.platform_wind import CreateDataStation
 from schemas.token import Token
 from schemas.user import UserCreate, UserUpdate
 from schemas.media import MediaCreate, MediaUpdate
@@ -56,7 +56,7 @@ from services.admin_analytics_service import AdminAnalyticsTracker
 from sql_app import models
 from sql_app.database import init_db
 from enums.ocupation_enum import OcupationEnum
-from enums.platform_enum import WindRoseMode, FieldsQualifiedData
+from enums.platform_enum import DataStationType, WindRoseMode
 
 
 BACKEND_ROOT = Path(__file__).resolve().parent
@@ -1012,44 +1012,43 @@ async def track_layer_upload_preview(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@app.post("/platform",
-    response_model=models.Platform,
+@app.post("/data-station",
+    response_model=models.DataStation,
     status_code=status.HTTP_201_CREATED
 )
-async def create_platform(
-    createPlatform: CreatePlatform, 
+async def create_data_station(
+    create_data_station: CreateDataStation,
     user: models.User | models.AnonymousUser = Depends(AuthController.get_user_from_token),
     has_permission: bool = Depends(AuthController.get_permission_dependency("layer_admin")),
     controller: PlatformService = Depends(PlatformService.inject_service)):
     if not has_permission:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
     try:
-        platform: models.Platform = await controller.create_platform(createPlatform)
-        return platform
+        station: models.DataStation = await controller.create_data_station(create_data_station)
+        return station
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except (RuntimeError, Exception) as e:
-        logging.exception("Erro ao criar plataforma")
+        logging.exception("Erro ao criar estação")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno do servidor.")
 
 
-@app.get('/platform', response_model=list[models.Platform])
-async def list_platform(
+@app.get('/data-station', response_model=list[models.DataStation])
+async def list_data_station(
+    name: str | None = Query(None, description="Nome exato da estação"),
+    layer_id: UUID | None = Query(None, description="Identificador da camada da estação"),
+    station_type: UUID | None = Query(None, alias="type", description="Identificador do tipo da estação"),
     user: models.User | models.AnonymousUser = Depends(AuthController.get_user_from_token),
-    has_permission: bool = Depends(AuthController.get_permission_dependency("layer_admin")),
     controller: PlatformService = Depends(PlatformService.inject_service)
 ):
-    if not has_permission:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
     try:
-        platform = await controller.list_platforms()
-        return platform
+        return await controller.list_data_stations(name=name, layer_id=layer_id, station_type=station_type)
     except LookupError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))# NÃO LOCALIZADO
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))# DADO INVÁLIDO
     except Exception:
-        logging.exception("Erro ao listar plataformas")
+        logging.exception("Erro ao listar estações")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno do servidor.")# Erro desconhecido
 
 
@@ -1229,8 +1228,8 @@ async def get_admin_analytics_export(
     return await controller.get_export(export_id)
 
 
-@app.get('/platform/{id}/heights', summary="Lista de alturas para uma plataforma",     description="""
-Retorna a lista de alturas disponíveis para uma plataforma dentro de um intervalo de datas.
+@app.get('/data-station/{id}/heights', summary="Lista de alturas para uma estação lidar",     description="""
+Retorna a lista de alturas disponíveis para uma estação lidar dentro de um intervalo de datas.
 
 - `start_datetime`: data/hora inicial da consulta
 - `end_datetime`: data/hora final da consulta
@@ -1238,16 +1237,13 @@ Retorna a lista de alturas disponíveis para uma plataforma dentro de um interva
 Caso as datas não sejam informadas, serão utilizados os dados do último mês salvo.
 """ 
 )
-async def getHeightsInPlatform(
-    id: UUID = PathParam(..., description="Identificador da plataforma"),
+async def get_heights_in_data_station(
+    id: UUID = PathParam(..., description="Identificador da estação"),
     start_datetime: datetime|None = Query(None, description="Data/hora inicial", example="2026-01-10T00:00:00"),
     end_datetime: datetime|None = Query(None, description="Data/hora final", example="2026-01-10T23:50:00"), 
     user: models.User | models.AnonymousUser = Depends(AuthController.get_user_from_token),
-    has_permission: bool = Depends(AuthController.get_permission_dependency("layer_admin")),
     controller: PlatformService = Depends(PlatformService.inject_service)
 ):
-    if not has_permission:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
     try:
         heights = await controller.heightsInPlatform(id, start_datetime, end_datetime )
         return heights
@@ -1256,13 +1252,30 @@ async def getHeightsInPlatform(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))# DADO INVÁLIDO
     except Exception:
-        logging.exception("Erro ao listar alturas da plataforma")
+        logging.exception("Erro ao listar alturas da estação")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno do servidor.")# Erro desconhecido
 
 
-@app.post("/qualified_data/{id}", summary="Salvar dados mensais de uma plataforma", description=
+@app.get('/data-station/{id}/available-months', summary="Lista os meses disponíveis para uma estação")
+async def get_available_months_in_data_station(
+    id: UUID = PathParam(..., description="Identificador da estação"),
+    user: models.User | models.AnonymousUser = Depends(AuthController.get_user_from_token),
+    controller: PlatformService = Depends(PlatformService.inject_service)
+):
+    try:
+        return await controller.list_available_months(id)
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception:
+        logging.exception("Erro ao listar meses disponíveis da estação")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno do servidor.")
+
+
+@app.post("/lidar/{id}", summary="Salvar dados mensais de uma estação lidar", description=
 """
-Recebe um arquivo CSV contendo os dados qualificados da plataforma para processamento.
+Recebe um arquivo CSV contendo os dados qualificados da estação lidar para processamento.
 
 Regras do arquivo:
 - O CSV deve utilizar `;` como separador de colunas.
@@ -1277,9 +1290,9 @@ Retorno:
 - A API retorna imediatamente o status de processamento do arquivo.
 """ 
 )
-async def upload_qualified_data(
+async def upload_lidar_data(
     background_tasks: BackgroundTasks,
-    id: UUID = PathParam(..., description="Identificador da plataforma"),
+    id: UUID = PathParam(..., description="Identificador da estação"),
     file: UploadFile = File(...),
     user: models.User | models.AnonymousUser = Depends(AuthController.get_user_from_token),
     has_permission: bool = Depends(AuthController.get_permission_dependency("layer_admin")), 
@@ -1296,10 +1309,9 @@ async def upload_qualified_data(
         tmp_path = tmp.name
     try:
         df = pd.read_csv(tmp_path, header=0, sep=";", )
-        await controller.validate_qualified_data_columns(df.head())
+        await controller.validate_lidar_data_columns(df.head())
 
-        # asyncio.create_task(controller.create_qualified_data_month(tmp_path, id))
-        background_tasks.add_task( controller.create_qualified_data_month, tmp_path, id) #Teste local
+        background_tasks.add_task(controller.create_lidar_data_month, tmp_path, id)
         return JSONResponse( status_code=status.HTTP_202_ACCEPTED, content={"status": "processando", "message": f"O arquivo '{file.filename}' foi recebido e está sendo processado em segundo plano."})
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))# DADO INVÁLIDO
@@ -1308,9 +1320,9 @@ async def upload_qualified_data(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Arquivo CSV inválido ou incompatível.")# Erro desconhecido
 
 
-@app.delete("/qualified_data/{id}" ,  summary="Deleta os dados qualificados de uma plataforma entre duas datas e horários.")
-async def delete_qualified_data(
-    id: UUID = PathParam(..., description="Identificador da plataforma"),
+@app.delete("/lidar/{id}" ,  summary="Deleta os dados lidar de uma estação entre duas datas e horários.")
+async def delete_lidar_data(
+    id: UUID = PathParam(..., description="Identificador da estação"),
     start_datetime: datetime = Query(..., description="Data/hora inicial", example="2026-01-10T00:00:00"),
     end_datetime: datetime = Query(..., description="Data/hora final", example="2026-01-01T23:50:00"),
     user: models.User | models.AnonymousUser = Depends(AuthController.get_user_from_token),
@@ -1321,22 +1333,52 @@ async def delete_qualified_data(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
     try:
         await controller.delete_qualified_data_between_datetimes(id, start_datetime, end_datetime)
-        return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content={"status": "success", "message": "Dados qualificados deletados com sucesso."})
+        return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content={"status": "success", "message": "Dados lidar deletados com sucesso."})
     except LookupError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))# NÃO LOCALIZADO
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))# DADO INVÁLIDO
     except Exception:
-        logging.exception("Erro ao deletar dados qualificados")
+        logging.exception("Erro ao deletar dados lidar")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno do servidor.")# Erro desconhecido
 
 
-@app.get("/time-series/platform/{id}" ,  summary="Série temporal de um campo de uma estação entre duas datas e horários.")
-async def time_series_list_data_by_field_between_datetimes(
-    id: UUID = PathParam(..., description="Identificador da plataforma"),
-    field_name: FieldsQualifiedData = Query(..., description="Nome do campo" ),
-    start_datetime: datetime| None = Query(None, description="Data/hora inicial", example="2026-01-10T00:00:00"),
-    end_datetime: datetime|None = Query(None, description="Data/hora final", example="2026-01-10T23:50:00"),
+@app.post("/solarimetric-stations/{id}", summary="Salvar dados mensais de uma estação solarimétrica")
+async def upload_solarimetric_station_data(
+    background_tasks: BackgroundTasks,
+    id: UUID = PathParam(..., description="Identificador da estação"),
+    file: UploadFile = File(...),
+    user: models.User | models.AnonymousUser = Depends(AuthController.get_user_from_token),
+    has_permission: bool = Depends(AuthController.get_permission_dependency("layer_admin")),
+    controller: PlatformService = Depends(PlatformService.inject_service)
+):
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    if not file.filename.lower().endswith('.csv'):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Somente arquivos .csv são aceitos.")
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
+        shutil.copyfileobj(file.file, tmp)
+        tmp_path = tmp.name
+    try:
+        df = pd.read_csv(tmp_path, header=0)
+        await controller.validate_solarimetric_data_columns(df.head())
+
+        background_tasks.add_task(controller.create_solarimetric_data_month, tmp_path, id)
+        return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content={"status": "processando", "message": f"O arquivo '{file.filename}' foi recebido e está sendo processado em segundo plano."})
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+    except Exception:
+        logging.exception("Erro ao processar arquivo CSV solarimétrico")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Arquivo CSV inválido ou incompatível.")
+
+
+@app.delete("/solarimetric-stations/{id}" , summary="Deleta os dados solarimétricos de uma estação entre duas datas e horários.")
+async def delete_solarimetric_station_data(
+    id: UUID = PathParam(..., description="Identificador da estação"),
+    start_datetime: datetime = Query(..., description="Data/hora inicial", example="2026-01-10T00:00:00"),
+    end_datetime: datetime = Query(..., description="Data/hora final", example="2026-01-01T23:50:00"),
     user: models.User | models.AnonymousUser = Depends(AuthController.get_user_from_token),
     has_permission: bool = Depends(AuthController.get_permission_dependency("layer_admin")),
     controller: PlatformService = Depends(PlatformService.inject_service)
@@ -1344,8 +1386,28 @@ async def time_series_list_data_by_field_between_datetimes(
     if not has_permission:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
     try:
-        data = await controller.graphics_time_series_data_by_plataform(id, field_name, start_datetime, end_datetime)
-        return data
+        await controller.delete_solarimetric_data_between_datetimes(id, start_datetime, end_datetime)
+        return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content={"status": "success", "message": "Dados solarimétricos deletados com sucesso."})
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception:
+        logging.exception("Erro ao deletar dados solarimétricos")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno do servidor.")
+
+
+@app.get("/time-series/{id}" ,  summary="Série temporal de um campo de uma estação entre duas datas e horários.")
+async def time_series_list_data_by_field_between_datetimes(
+    id: UUID = PathParam(..., description="Identificador da estação"),
+    col: str = Query(..., description="Nome do campo" ),
+    start_datetime: datetime| None = Query(None, description="Data/hora inicial", example="2026-01-10T00:00:00"),
+    end_datetime: datetime|None = Query(None, description="Data/hora final", example="2026-01-10T23:50:00"),
+    user: models.User | models.AnonymousUser = Depends(AuthController.get_user_from_token),
+    controller: PlatformService = Depends(PlatformService.inject_service)
+):
+    try:
+        return await controller.graphics_time_series_by_station(id, col, start_datetime, end_datetime)
     except LookupError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))# NÃO LOCALIZADO
     except ValueError as e:
@@ -1355,20 +1417,25 @@ async def time_series_list_data_by_field_between_datetimes(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno do servidor.")# Erro desconhecido
 
 
-@app.get("/wind-rose/platform/{id}" ,  summary="Rosa dos ventos com base nos dados de uma plataforma entre duas datas e horários.")
+@app.get("/wind-rose/{id}" ,  summary="Rosa dos ventos com base nos dados de uma estação lidar entre duas datas e horários.")
 async def wind_rose_data_between_datetimes(
-    id: UUID = PathParam(..., description="Identificador da plataforma"),
+    id: UUID = PathParam(..., description="Identificador da estação"),
+    col: str = Query("h_spd", description="Campo base do gráfico"),
     start_datetime: datetime|None = Query(None, description="Data/hora inicial", example="2026-01-10T00:00:00"),
     end_datetime: datetime|None = Query(None, description="Data/hora final", example="2026-01-10T23:50:00"),
-    mode: WindRoseMode = Query( WindRoseMode.mean_h_spd, description="Modo de cálculo da rosa dos ventos"),
     height: int|None = Query(None, description="Altura",ge=1, example=210),
     user: models.User | models.AnonymousUser = Depends(AuthController.get_user_from_token),
-    has_permission: bool = Depends(AuthController.get_permission_dependency("layer_admin")),
     controller: PlatformService = Depends(PlatformService.inject_service)
 ):
-    if not has_permission:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
     try:
+        station = await controller.get_data_station(id=id)
+        resolved_field = controller.resolve_field_name_for_station(station, col)
+        if resolved_field == "h_spd":
+            mode = WindRoseMode.mean_h_spd
+        elif resolved_field == "ti":
+            mode = WindRoseMode.mean_ti
+        else:
+            raise ValueError("A rosa dos ventos só aceita os campos 'h_spd' ou 'ti'.")
         return await controller.last_month_and_x_heights_wind_rose(id, mode, start_datetime, end_datetime, height)
     except LookupError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))# NÃO LOCALIZADO
@@ -1379,18 +1446,21 @@ async def wind_rose_data_between_datetimes(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno do servidor.")# Erro desconhecido
 
 
-@app.get("/vertical-profile/platform/{id}" ,  summary="Perfil vertical da velocidade horizontal do vento em uma plataforma.")
+@app.get("/vertical-profile/{id}" ,  summary="Perfil vertical da velocidade horizontal do vento em uma estação lidar.")
 async def vertical_profile_data_between_datetimes(
-    id: UUID = PathParam(..., description="Identificador da plataforma"),
+    id: UUID = PathParam(..., description="Identificador da estação"),
+    col: str | None = Query(None, description="Campo base do gráfico"),
     start_datetime: datetime|None = Query(None, description="Data/hora inicial", example="2026-01-10T00:00:00"),
     end_datetime: datetime|None = Query(None, description="Data/hora final", example="2026-01-10T23:50:00"),
     user: models.User | models.AnonymousUser = Depends(AuthController.get_user_from_token),
-    has_permission: bool = Depends(AuthController.get_permission_dependency("layer_admin")),
     controller: PlatformService = Depends(PlatformService.inject_service)
 ):
-    if not has_permission:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
     try:
+        if col is not None:
+            station = await controller.get_data_station(id=id)
+            resolved_field = controller.resolve_field_name_for_station(station, col)
+            if resolved_field != "h_spd":
+                raise ValueError("O perfil vertical só aceita o campo 'h_spd'.")
         return  await controller.average_vertical_profile( id, start_datetime, end_datetime)
     except LookupError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))# NÃO LOCALIZADO
@@ -1401,20 +1471,17 @@ async def vertical_profile_data_between_datetimes(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno do servidor.")# Erro desconhecido
 
 
-@app.get("/diurnal-profile/platform/{id}" ,  summary="Perfil diurno de um campo específico de uma plataforma entre duas datas.")
+@app.get("/diurnal-profile/{id}" ,  summary="Perfil diurno de um campo específico de uma estação entre duas datas.")
 async def diurnal_profile_by_field_(
-    id: UUID = PathParam(..., description="Identificador da plataforma"),
-    field_name: FieldsQualifiedData = Query(..., description="Nome do campo" ),
+    id: UUID = PathParam(..., description="Identificador da estação"),
+    col: str = Query(..., description="Nome do campo" ),
     start_datetime: datetime|None = Query(None, description="Data/hora inicial", example="2026-01-10T00:00:00"),
     end_datetime: datetime|None = Query(None, description="Data/hora final", example="2026-01-10T23:50:00"),
     user: models.User | models.AnonymousUser = Depends(AuthController.get_user_from_token),
-    has_permission: bool = Depends(AuthController.get_permission_dependency("layer_admin")),
     controller: PlatformService = Depends(PlatformService.inject_service)
 ):
-    if not has_permission:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
     try:
-        return  await controller.average_diurnal_cycle(id, field_name, start_datetime, end_datetime)
+        return  await controller.average_diurnal_cycle(id, col, start_datetime, end_datetime)
     except LookupError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))# NÃO LOCALIZADO
     except ValueError as e:

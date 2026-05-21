@@ -9,6 +9,11 @@ __pycache__/
 # C extensions
 *.so
 
+# layers, jsons and icons
+assets/public/layers/
+assets/public/jsons/
+assets/public/icons/
+
 # Distribution / packaging
 .Python
 build/

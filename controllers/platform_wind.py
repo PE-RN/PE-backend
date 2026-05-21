@@ -1,21 +1,22 @@
 import calendar
-import datetime
-from typing import Annotated
-from fastapi import HTTPException
-from fastapi.params import Depends
-import numpy as np
-from pandas.errors import EmptyDataError
-from sqlmodel.ext.asyncio.session import AsyncSession
-from schemas.platform_wind import CreateQualifiedData
-from sql_app.database import get_db
-from sql_app.models import Platform, QualifiedData
-import pandas as pd
-from uuid import UUID
-from scipy.optimize import curve_fit
+import logging
+import os
 import re
+import unicodedata
+from typing import Annotated
+from uuid import UUID
 
+import numpy as np
+import pandas as pd
+from fastapi.params import Depends
+from scipy.optimize import curve_fit
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from enums.platform_enum import DataStationType, WindRoseMode
 from repositories.platform_wind import PlatformRepository
-from enums.platform_enum import WindRoseMode
+from schemas.platform_wind import CreateDataStation, CreateLidarStationData, CreateQualifiedData, CreateSolarimetricStationData
+from sql_app.database import get_db
+from sql_app.models import DataStation, LidarStationData, SolarimetricStationData
 
 fields_without_height_level_dict = {}
 fields_without_height_level_dict["m_temp"] = "Temperatura do ar - Met"
@@ -23,8 +24,43 @@ fields_without_height_level_dict["m_pres"] = "Pressão - Met"
 fields_without_height_level_dict["m_wspd"] = "Velocidade do vento - Met"
 fields_without_height_level_dict["m_wdir"] = "Direção do Vento - Met"
 
-import logging
 logger = logging.getLogger(__name__)
+
+LIDAR_HEIGHT_PATTERN = re.compile(
+    r"(?:Wind Direction \(deg\)|Horizontal Wind Speed \(m/s\)|TI) at\s+(\d+(?:[\.,]\d+)?)m\b"
+)
+
+STATION_TYPE_ALIAS_MAP = {
+    "LIDAR": DataStationType.lidar.value,
+    "SOLAR": DataStationType.solarimetric.value,
+    "SOLARIMETRICA": DataStationType.solarimetric.value,
+    "SOLARIMETRIC": DataStationType.solarimetric.value,
+}
+
+SOLARIMETRIC_FIELD_ALIAS_MAP = {
+    "GHI": "ghi",
+    "TEMPERATURA": "temp",
+    "UMIDADE": "hum",
+    "VELOCIDADE DO VENTO": "vel",
+}
+
+LIDAR_FIELD_ALIAS_MAP = {
+    "DIRECAO DO VENTO": "wdir",
+    "DIRECAO DO VENTO MET": "m_wdir",
+    "HORIZONTAL WIND SPEED": "h_spd",
+    "INTENSIDADE DA TURBULENCIA": "ti",
+    "INTENSIDADE DE TURBULENCIA": "ti",
+    "MET AIR TEMP": "m_temp",
+    "MET PRESSURE": "m_pres",
+    "MET WIND DIRECTION": "m_wdir",
+    "MET WIND SPEED": "m_wspd",
+    "PRESSAO": "m_pres",
+    "TEMPERATURA DO AR": "m_temp",
+    "TURBULENCE INTENSITY": "ti",
+    "VELOCIDADE DO VENTO": "h_spd",
+    "VELOCIDADE DO VENTO HORIZONTAL": "h_spd",
+    "VELOCIDADE DO VENTO MET": "m_wspd",
+}
 
 class PlatformService:
     def __init__(self, repository: PlatformRepository):
@@ -40,46 +76,74 @@ class PlatformService:
         return PlatformService(repository=repository)
     
 
-    async def create_platform(self, createPlatform):
+    async def create_data_station(self, create_data_station: CreateDataStation) -> DataStation:
         try:
-            platform_dict = createPlatform.model_dump()
-            platform: Platform = Platform(**platform_dict)
-            self.repo.insert_platform(platform)
+            existing_station = await self.repo.get_platform(name=create_data_station.name)
+            if existing_station is not None:
+                raise ValueError(f"Já existe uma estação com o nome '{create_data_station.name}'.")
+
+            station_type = await self.repo.get_station_type(create_data_station.type)
+            if station_type is None:
+                raise ValueError("O tipo informado para a estação é inválido.")
+
+            station = DataStation(**create_data_station.model_dump())
+            self.repo.insert_platform(station)
             await self.repo.commit()
-            await self.repo.refresh_platform(platform)
-            return platform_dict
-            # return platform
+            await self.repo.refresh_platform(station)
+            return station
         except Exception as e:
             await self.repo.rollback()
-            raise RuntimeError(f"Erro ao criar plataforma: {str(e)}")
+            if isinstance(e, ValueError):
+                raise
+            raise RuntimeError(f"Erro ao criar estação: {str(e)}")
+
+
+    async def create_platform(self, create_platform: CreateDataStation) -> DataStation:
+        return await self.create_data_station(create_platform)
     
         
-    async def getPlatform(self, name=None, id=None) -> Platform | None: 
+    async def get_data_station(self, name=None, id=None, layer_id=None, station_type=None) -> DataStation:
         try:
-            platform = await self.repo.get_platform(name,id)
-            if platform is None:
+            station = None
+
+            if id is not None and name is None and layer_id is None:
+                station = await self.repo.get_platform(id=id, station_type=station_type)
+                if station is None:
+                    station = await self.repo.get_platform(layer_id=id, station_type=station_type)
+            else:
+                station = await self.repo.get_platform(name=name, id=id, layer_id=layer_id, station_type=station_type)
+
+            if station is None:
                 if id is not None:
-                    raise LookupError(f"Id {id} da Plataforma é inválido.") 
-                else:
-                    raise LookupError(f"Plataforma de nome {name} não encontrada.")
-            return dict(platform)
+                    raise LookupError(f"Id ou layer_id {id} da estação é inválido.")
+                if name is not None and layer_id is not None:
+                    raise LookupError(f"Estação '{name}' não encontrada para a camada informada.")
+                if name is not None:
+                    raise LookupError(f"Estação de nome {name} não encontrada.")
+                raise LookupError("Estação não encontrada.")
+            return station
         except LookupError:
             raise
         except Exception as e:
-            raise RuntimeError(f"Erro ao listar Plataforma: {str(e)}")
+            raise RuntimeError(f"Erro ao buscar estação: {str(e)}")
+
+
+    async def getPlatform(self, name=None, id=None) -> DataStation:
+        return await self.get_data_station(name=name, id=id)
+
+
+    async def list_data_stations(self, name=None, layer_id=None, station_type=None):
+        try:
+            return await self.repo.list_all_platforms(name=name, layer_id=layer_id, station_type=station_type)
+        except Exception as e:
+            raise RuntimeError(f"Erro ao listar estações: {str(e)}")
 
 
     async def list_platforms(self):
-        try:
-            platforms = await self.repo.list_all_platforms()
-            return platforms
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise RuntimeError(f"Erro ao listar Plataformas: {str(e)}")
+        return await self.list_data_stations()
 
 
-    async def validate_qualified_data_columns(self, df):
+    async def validate_lidar_data_columns(self, df):
         required_columns = [
             "Time and Date",
             "Met Air Temp. (C)",
@@ -121,16 +185,35 @@ class PlatformService:
             raise ValueError(f"As seguintes colunas estão ausentes: {missing_columns}")
 
 
-    async def create_qualified_data_month(self, file_path: str, platform_id: UUID):
+    async def validate_qualified_data_columns(self, df):
+        await self.validate_lidar_data_columns(df)
+
+
+    async def validate_solarimetric_data_columns(self, df):
+        required_columns = [
+            "TIMESTAMP",
+            "GHI",
+            "UMIDADE",
+            "VELOCIDADE DO VENTO",
+            "TEMPERATURA",
+        ]
+
+        missing_columns = [column for column in required_columns if column not in df.columns]
+        if missing_columns:
+            raise ValueError(f"As seguintes colunas estão ausentes: {missing_columns}")
+
+
+    async def create_lidar_data_month(self, file_path: str, station_id: UUID):
         try:
-            platform = await self.getPlatform(id=platform_id)
+            station = await self.get_data_station(id=station_id)
+            self.require_station_type(station, DataStationType.lidar)
+
             df = pd.read_csv(file_path, header=0, sep=";", )
-            await self.save_qualified_data_to_db(df, platform, file_path)
+            await self.save_lidar_data_to_db(df, station, file_path)
         except Exception as e:
-            logger.warning(f"Erro ao salvos dados mensais de uma plataforma: {str(e)}")
+            logger.warning(f"Erro ao salvar dados mensais da estação lidar: {str(e)}")
             await self.repo.rollback()
         finally:
-            import os
             if os.path.exists(file_path):
                 os.remove(file_path)
                 logger.info(f"[CLEANUP] Arquivo temporário '{file_path}' removido.")
@@ -138,9 +221,32 @@ class PlatformService:
             return
 
 
-    async def save_qualified_data_to_db(self, df, platform, path_file):
-        id_platform = platform["id"]
-        sensor_height = int(platform["sensor_height"])
+    async def create_qualified_data_month(self, file_path: str, platform_id: UUID):
+        await self.create_lidar_data_month(file_path, platform_id)
+
+
+    async def create_solarimetric_data_month(self, file_path: str, station_id: UUID):
+        try:
+            station = await self.get_data_station(id=station_id)
+            self.require_station_type(station, DataStationType.solarimetric)
+
+            df = pd.read_csv(file_path, header=0)
+            await self.save_solarimetric_data_to_db(df, station, file_path)
+        except Exception as e:
+            logger.warning(f"Erro ao salvar dados mensais da estação solarimétrica: {str(e)}")
+            await self.repo.rollback()
+        finally:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                logger.info(f"[CLEANUP] Arquivo temporário '{file_path}' removido.")
+                print(f"[CLEANUP] Arquivo temporário '{file_path}' removido.")
+            return
+
+
+    async def save_lidar_data_to_db(self, df, station: DataStation, path_file):
+        station_id = station.id
+        station_name = station.name
+        sensor_height = int(station.sensor_height or 0)
         try:
             df["Time and Date"] = pd.to_datetime(df["Time and Date"])
             df = df.replace(",", ".", regex=True)
@@ -160,10 +266,10 @@ class PlatformService:
                     agg_dict[col] = "mean" #Media simples, ignora os nan
 
             df_hora = df.resample("1h").agg(agg_dict)
-            #df_hora = df.resample("1h").mean()
+            df_hora = df_hora.dropna(how="all")
 
             if df_hora.empty:
-                logger.warning(f"[IMPORT] {platform['name']}: Arquivo {path_file} vazio após processamento.")
+                logger.warning(f"[IMPORT] {station_name}: Arquivo {path_file} vazio após processamento.")
 
             heights = get_height_in_df_by_columns(df)
 
@@ -182,33 +288,94 @@ class PlatformService:
                         "wdir": row.get(f"Wind Direction (deg) at {height}m", np.nan),
                         "h_spd": row.get(f"Horizontal Wind Speed (m/s) at {height}m", np.nan),
                         "ti": row.get(f"TI at {height}m", np.nan),
-                        "plat_id": id_platform
+                        "station_id": station_id,
                     }
-                    createQualifildData = CreateQualifiedData(**qualifild_data_dict)#Otimizar
-                    create_qualified_data_list_dict.append(createQualifildData)
-            await self.create_qualified_data_list(create_qualified_data_list_dict)
-            logger.info(f"[INFO] {platform['name']} Dados do arquivo {path_file} salvos com sucesso.")
-            print(f"[INFO] {platform['name']} Dados do arquivo {path_file} salvos com sucesso.")
+                    create_lidar_data = CreateLidarStationData(**qualifild_data_dict)
+                    create_qualified_data_list_dict.append(create_lidar_data.model_dump())
+
+            create_qualified_data_list_dict = dedupe_lidar_batch_rows(
+                create_qualified_data_list_dict,
+                station_name,
+                path_file,
+            )
+
+            await self.create_lidar_data_list(create_qualified_data_list_dict)
+            logger.info(f"[INFO] {station_name} Dados do arquivo {path_file} salvos com sucesso.")
+            print(f"[INFO] {station_name} Dados do arquivo {path_file} salvos com sucesso.")
         except Exception as e:
-            logger.warning(f"[IMPORT][ERROR] {platform['name']}: Falha ao salvar o arquivo {path_file}. {e}.")
+            logger.warning(f"[IMPORT][ERROR] {station_name}: Falha ao salvar o arquivo {path_file}. {e}.")
 
 
-    async def create_qualified_data_list(self, list_data: list[dict]):
+    async def save_qualified_data_to_db(self, df, platform, path_file):
+        await self.save_lidar_data_to_db(df, platform, path_file)
+
+
+    async def save_solarimetric_data_to_db(self, df, station: DataStation, path_file):
+        station_id = station.id
+        station_name = station.name
+        try:
+            await self.validate_solarimetric_data_columns(df)
+
+            df["TIMESTAMP"] = pd.to_datetime(df["TIMESTAMP"])
+            numeric_columns = ["GHI", "UMIDADE", "VELOCIDADE DO VENTO", "TEMPERATURA"]
+            for column in numeric_columns:
+                df[column] = pd.to_numeric(df[column], errors="coerce")
+
+            df = df.set_index("TIMESTAMP").sort_index()
+            df_hourly = df.resample("1h").mean().dropna(how="all")
+
+            if df_hourly.empty:
+                logger.warning(f"[IMPORT] {station_name}: Arquivo {path_file} vazio após processamento.")
+
+            rows = []
+            for index, row in df_hourly.iterrows():
+                station_data = CreateSolarimetricStationData(
+                    dt=index,
+                    ghi=row.get("GHI", np.nan),
+                    hum=row.get("UMIDADE", np.nan),
+                    temp=row.get("TEMPERATURA", np.nan),
+                    vel=row.get("VELOCIDADE DO VENTO", np.nan),
+                    station_id=station_id,
+                )
+                rows.append(station_data.model_dump())
+
+            await self.create_solarimetric_data_list(rows)
+            logger.info(f"[INFO] {station_name} Dados do arquivo {path_file} salvos com sucesso.")
+            print(f"[INFO] {station_name} Dados do arquivo {path_file} salvos com sucesso.")
+        except Exception as e:
+            logger.warning(f"[IMPORT][ERROR] {station_name}: Falha ao salvar o arquivo {path_file}. {e}.")
+
+
+    async def create_lidar_data_list(self, list_data: list[dict]):
         try:
             await self.repo.insert_batch_qualified_data(list_data)
             await self.repo.commit()
         except Exception as e:
             await self.repo.rollback()
-            raise RuntimeError(f"Erro ao criar Dados Brutos por lista: {str(e)}")
+            raise RuntimeError(f"Erro ao criar dados lidar por lista: {str(e)}")
 
 
-    async def graphics_time_series_data_by_plataform(self, platform_id, field_name, start_search_date, end_search_date):
+    async def create_qualified_data_list(self, list_data: list[dict]):
+        await self.create_lidar_data_list(list_data)
+
+
+    async def create_solarimetric_data_list(self, list_data: list[dict]):
         try:
-            start_search_date, end_search_date = await self.valide_date_and_create_datetime(platform_id, start_search_date, end_search_date)
-            self.verifyFieldNameExistsInDataModel(QualifiedData, field_name)
-            platform : Platform = await self.getPlatform(id=platform_id)
+            await self.repo.insert_batch_solarimetric_data(list_data)
+            await self.repo.commit()
+        except Exception as e:
+            await self.repo.rollback()
+            raise RuntimeError(f"Erro ao criar dados solarimétricos por lista: {str(e)}")
 
-            raw_data =  await self.repo.get_data_timeseries_by_height(platform, field_name, start_search_date, end_search_date)
+
+    async def graphics_time_series_data_by_lidar(self, platform_id, field_name, start_search_date, end_search_date):
+        try:
+            station: DataStation = await self.get_data_station(id=platform_id)
+            self.require_station_type(station, DataStationType.lidar)
+            field_name = self.resolve_field_name_for_station(station, field_name)
+            start_search_date, end_search_date = await self.valide_date_and_create_datetime(station, LidarStationData, start_search_date, end_search_date)
+
+            raw_data =  await self.repo.get_data_timeseries_by_height(station, field_name, start_search_date, end_search_date)
             formatted = []
             for row in raw_data:
                 # if row[0] in heights:
@@ -230,19 +397,93 @@ class PlatformService:
                     break
             
             return {"timeSeries": formatted}
-        except LookupError as e:
+        except LookupError:
             raise 
-        except ValueError as e:
+        except ValueError:
+            raise
+        except Exception as e:
+            raise Exception(f"Erro ao gerar série temporal: {str(e)}")
+        
+
+    async def graphics_time_series_data(self, station_id, field_name, start_search_date, end_search_date):
+        try:
+            station: DataStation = await self.get_data_station(id=station_id)
+            self.require_station_type(station, DataStationType.solarimetric)
+            field_name = self.resolve_field_name_for_station(station, field_name)
+            start_search_date, end_search_date = await self.valide_date_and_create_datetime(station, SolarimetricStationData, start_search_date, end_search_date)
+
+            raw_data = await self.repo.get_data_timeseries(station, SolarimetricStationData, field_name, start_search_date, end_search_date)
+            formatted = []
+            for row in raw_data:
+                formatted.append({
+                    "x": row.dt,
+                    "y": row.value if row.value != "NaN" else None,
+                })
+
+            return {"timeSeries": [{"id": station.name, "data": formatted}]}
+        except LookupError:
+            raise
+        except ValueError:
             raise
         except Exception as e:
             raise Exception(f"Erro ao gerar série temporal: {str(e)}")
 
 
+    async def graphics_time_series_by_station(self, station_id, field_name, start_search_date, end_search_date):
+        station: DataStation = await self.get_data_station(id=station_id)
+        station_type = self.get_station_type_name(station)
+        if station_type == DataStationType.lidar.value:
+            return await self.graphics_time_series_data_by_lidar(station_id, field_name, start_search_date, end_search_date)
+        return await self.graphics_time_series_data(station_id, field_name, start_search_date, end_search_date)
+
+
     def verifyFieldNameExistsInDataModel(self, DataModel, field_name: str):
-        if field_name == "plat_id" or field_name == "id" or field_name == "dt" :
+        if field_name in {"id", "dt", "plat_id", "station_id"}:
             raise ValueError(f"O campo '{field_name}' não pode ser utilizado.")
         if not hasattr(DataModel, field_name):
             raise LookupError(f"O campo '{field_name}' não existe.")
+
+
+    def normalize_lookup_key(self, value: str) -> str:
+        normalized = unicodedata.normalize("NFKD", str(value))
+        normalized = normalized.encode("ascii", "ignore").decode("ascii")
+        normalized = normalized.replace("_", " ")
+        normalized = re.sub(r"\s+", " ", normalized.strip())
+        return normalized.upper()
+
+
+    def get_station_type_name(self, station: DataStation) -> str:
+        raw_name = station.station_type_ref.name if station.station_type_ref is not None else None
+        if not raw_name:
+            raise ValueError("A estação informada não possui um tipo associado.")
+
+        normalized = self.normalize_lookup_key(raw_name)
+        return STATION_TYPE_ALIAS_MAP.get(normalized, raw_name.strip().lower())
+
+
+    def require_station_type(self, station: DataStation, expected_type: DataStationType) -> None:
+        station_type = self.get_station_type_name(station)
+        if station_type != expected_type.value:
+            raise ValueError(f"A estação '{station.name}' não é do tipo '{expected_type.value}'.")
+
+
+    def resolve_field_name_for_station(self, station: DataStation, field_name: str) -> str:
+        requested_field = getattr(field_name, "value", field_name)
+        station_type = self.get_station_type_name(station)
+        data_model = LidarStationData if station_type == DataStationType.lidar.value else SolarimetricStationData
+
+        if hasattr(data_model, requested_field):
+            self.verifyFieldNameExistsInDataModel(data_model, requested_field)
+            return requested_field
+
+        normalized_field = self.normalize_lookup_key(requested_field)
+        alias_map = LIDAR_FIELD_ALIAS_MAP if data_model is LidarStationData else SOLARIMETRIC_FIELD_ALIAS_MAP
+        resolved_field = alias_map.get(normalized_field)
+        if resolved_field is None:
+            raise LookupError(f"O campo '{requested_field}' não existe para o tipo da estação.")
+
+        self.verifyFieldNameExistsInDataModel(data_model, resolved_field)
+        return resolved_field
         
 
     def fist_and_laster_data_month(self, date_time):
@@ -255,6 +496,37 @@ class PlatformService:
         return fist_day_datetime, last_day_datetime
 
 
+    async def list_available_months(self, platform_id):
+        station: DataStation = await self.get_data_station(id=platform_id)
+        station_type = self.get_station_type_name(station)
+        data_model = LidarStationData if station_type == DataStationType.lidar.value else SolarimetricStationData
+
+        last_date = await self.repo.get_last_date(station.id, data_model)
+        if not last_date:
+            raise LookupError("Nenhum dado encontrado para a estação.")
+
+        month_starts = await self.repo.get_available_months(station.id, data_model)
+        available_months = []
+        for month_start in month_starts:
+            start_datetime, end_datetime = self.fist_and_laster_data_month(month_start)
+            available_months.append(
+                {
+                    "key": month_start.strftime("%Y-%m"),
+                    "start_datetime": start_datetime,
+                    "end_datetime": end_datetime,
+                }
+            )
+
+        default_start_datetime, default_end_datetime = self.fist_and_laster_data_month(last_date)
+        return {
+            "default_period": {
+                "start_datetime": default_start_datetime,
+                "end_datetime": default_end_datetime,
+            },
+            "available_months": available_months,
+        }
+
+
     async def last_month_and_x_heights_wind_rose(self, platform_id, mode, start_search_date, end_search_date, height= None, number_heights=3):
         if mode == WindRoseMode.mean_h_spd:
             field_name = "h_spd"
@@ -263,16 +535,17 @@ class PlatformService:
         else:
             raise ValueError("Modo de cálculo da rosa dos ventos inválido. Use 'mean_h_spd' ou 'mean_ti'.")
 
-        start_search_date, end_search_date = await self.valide_date_and_create_datetime(platform_id, start_search_date, end_search_date)
-        platform:Platform = await self.getPlatform(id=platform_id)
-        heights = await self.repo.getHeightByPlatform(platform, start_search_date, end_search_date)
+        station: DataStation = await self.get_data_station(id=platform_id)
+        self.require_station_type(station, DataStationType.lidar)
+        start_search_date, end_search_date = await self.valide_date_and_create_datetime(station, LidarStationData, start_search_date, end_search_date)
+        heights = await self.repo.getHeightByPlatform(station, start_search_date, end_search_date)
         if height is None:
             if not heights:
-                raise ValueError("Nenhuma altura encontrada para a plataforma.")            
+                raise ValueError("Nenhuma altura encontrada para a estação.")            
             heights = heights[number_heights:]
         else: 
             if height not in heights:
-                raise ValueError(f"Altura {height} não encontrada para a plataforma.")
+                raise ValueError(f"Altura {height} não encontrada para a estação.")
             heights = [height]
         
         
@@ -285,8 +558,9 @@ class PlatformService:
 
     async def graphics_wind_rose_data_mean_field_by_platform(self, platform_id, field_name, start_search_date, end_search_date, height):
         try:
-            platform:Platform = await self.getPlatform(id=platform_id)
-            raw_data = await self.repo.get_wind_rose_base_data(platform, start_search_date, end_search_date,height)
+            station: DataStation = await self.get_data_station(id=platform_id)
+            self.require_station_type(station, DataStationType.lidar)
+            raw_data = await self.repo.get_wind_rose_base_data(station, start_search_date, end_search_date, height)
 
             # Extrai arrays
             wdir = np.array([row.wdir for row in raw_data], dtype=np.float64)
@@ -323,9 +597,9 @@ class PlatformService:
 
                 formatted.append({ "Direcao": direction, "avg": float(avg) })
             return {"height": height, "windRose": formatted}
-        except LookupError as e:
+        except LookupError:
             raise 
-        except ValueError as e:
+        except ValueError:
             raise
         except Exception as e:
             raise Exception(f"Erro ao gerar rosa dos ventos: {str(e)}")
@@ -333,8 +607,11 @@ class PlatformService:
 
     async def heightsInPlatform(self, platform_id, start_search_date=None, end_search_date=None):
         try:
+            station: DataStation = await self.get_data_station(id=platform_id)
+            self.require_station_type(station, DataStationType.lidar)
+
             if start_search_date is None and end_search_date is None:
-                last_date = await self.repo.get_last_date(platform_id)
+                last_date = await self.repo.get_last_date(station.id, LidarStationData)
                 if last_date is None:
                     return {"available_heights": []}
                 start_search_date, end_search_date = self.fist_and_laster_data_month(last_date)
@@ -342,27 +619,27 @@ class PlatformService:
                 if start_search_date > end_search_date:
                     raise ValueError("A data de início deve ser anterior à data de término.")
 
-            platform:Platform = await self.getPlatform(id=platform_id)
-            heights_platform = await self.repo.getHeightByPlatform(platform, start_search_date, end_search_date)
+            heights_platform = await self.repo.getHeightByPlatform(station, start_search_date, end_search_date)
             return {"available_heights": heights_platform}
-        except LookupError as e:
+        except LookupError:
             raise 
-        except ValueError as e:
+        except ValueError:
             raise
         except Exception as e:
-            raise Exception(f"Erro ao listar as alturas em uma plataforma: {str(e)}")
+            raise Exception(f"Erro ao listar as alturas em uma estação: {str(e)}")
 
 
     async def average_vertical_profile(self, platform_id, start_datetime, end_datetime, number_heights:int=3):
         try:
-            start_datetime, end_datetime = await self.valide_date_and_create_datetime(platform_id, start_datetime, end_datetime)
+            station: DataStation = await self.get_data_station(id=platform_id)
+            self.require_station_type(station, DataStationType.lidar)
+            start_datetime, end_datetime = await self.valide_date_and_create_datetime(station, LidarStationData, start_datetime, end_datetime)
             
-            platform:Platform = await self.getPlatform(id=platform_id)
-            raw_data =  await self.repo.get_average_by_height(platform, "h_spd", start_datetime, end_datetime)
+            raw_data =  await self.repo.get_average_by_height(station, "h_spd", start_datetime, end_datetime)
             
             if len(raw_data) <= 1:
                 return {
-                    "observations" : [{"x":raw_data[0][0], "y":raw_data[0][1]} if len(raw_data) == 1 else {}],
+                    "observations" : [{"y":raw_data[0][0], "x":raw_data[0][1]} if len(raw_data) == 1 else {}],
                     "models_fit" : []
                 }
             heights_measured = np.array([float(r[0]) for r in raw_data])#Altura
@@ -398,13 +675,13 @@ class PlatformService:
             w_speeds_profile_surf_rough = log_linear_model(log_h_continuous, slope, intercept)
             rmse_surf_rough, bias_surf_rough, r2_surf_rough = calculate_rmse_bias_r2(w_speeds_predicted_surf_rough, w_speeds_measured)
 
-            observations = [ { "x": int(h), "y":float(v)} for h, v in raw_data[number_heights:] ]
+            observations = [ { "y": int(h), "x":float(v)} for h, v in raw_data[number_heights:] ]
             curve_continuous_profile_power_law = [
-                {"x": 0, "y": 0}] + [ 
-                { "x": int(h), "y":float(v)} for h, v in zip(h_continuous , w_speeds_profile_power_law) ]
+                {"y": 0, "x": 0}] + [ 
+                { "y": int(h), "x":float(v)} for h, v in zip(h_continuous , w_speeds_profile_power_law) ]
             curve_continuous_profile_surf_rough = [
-                {"x": 0, "y": 0}] + [ 
-                { "x": int(h), "y":float(v)} for h, v in zip(h_continuous , w_speeds_profile_surf_rough) ]
+                {"y": 0, "x": 0}] + [ 
+                { "y": int(h), "x":float(v)} for h, v in zip(h_continuous , w_speeds_profile_surf_rough) ]
 
             return { 
                 "observations" : observations,
@@ -425,9 +702,9 @@ class PlatformService:
                     }
                 ]
             } 
-        except LookupError as e:
+        except LookupError:
             raise 
-        except ValueError as e:
+        except ValueError:
             raise
         except Exception as e:
             raise Exception(f"Erro ao calcular Perfil vertical: {str(e)}")
@@ -436,40 +713,45 @@ class PlatformService:
     async def average_diurnal_cycle(self, platform_id, field_name, start_datetime, end_datetime, number_heights:int=3):
             try:
 
-                start_datetime, end_datetime = await self.valide_date_and_create_datetime(platform_id, start_datetime, end_datetime)
-                platform:Platform = await self.getPlatform(id=platform_id)
+                station: DataStation = await self.get_data_station(id=platform_id)
+                station_type = self.get_station_type_name(station)
+                data_model = LidarStationData if station_type == DataStationType.lidar.value else SolarimetricStationData
+                resolved_field_name = self.resolve_field_name_for_station(station, field_name)
+                start_datetime, end_datetime = await self.valide_date_and_create_datetime(station, data_model, start_datetime, end_datetime)
 
-                # Obter as alturas disponíveis
-                heights = await self.repo.getHeightByPlatform(platform, start_datetime, end_datetime)
-                if not heights:
-                    raise ValueError("Nenhuma altura encontrada para a plataforma.")
-                
-                # Limitar o número de alturas
-                heights = heights[number_heights:]
+                if data_model is LidarStationData:
+                    heights = await self.repo.getHeightByPlatform(station, start_datetime, end_datetime)
+                    if not heights:
+                        raise ValueError("Nenhuma altura encontrada para a estação.")
 
-                self.verifyFieldNameExistsInDataModel(QualifiedData, field_name)
+                    heights = heights[number_heights:]
+                    raw_data = await self.repo.get_hourly_mean_over_days(station, LidarStationData, resolved_field_name, start_datetime, end_datetime)
+                    series = {}
+                    for row in raw_data:
+                        if row.height in heights:
+                            key = f"{row.height}m"
+                            if key not in series:
+                                series[key] = []
+                            series[key].append({
+                                "x": int(row.hour),
+                                "y": float(row.avg),
+                            })
 
-                raw_data =  await self.repo.get_hourly_mean_over_days(platform, field_name, start_datetime, end_datetime)
-                series = {}
-                for row in raw_data:
-                    if row.height in heights:
-                        key = f"{row.height}m"
-                        if key not in series:
-                            series[key] = []
-                        series[key].append({
-                            "x": int(row.hour),
-                            "y": float(row.avg)
-                        })
-                        # series["15m"] = [{"x":0, "y":50}, {"x":1, "y":45}, . . . , {"x":23, "y":85.5} ]
+                    items = [{"id": key, "data": list_h_and_mean} for key, list_h_and_mean in series.items()]
+                    if resolved_field_name in fields_without_height_level_dict.keys() and items:
+                        items[0]["id"] = fields_without_height_level_dict[resolved_field_name]
+                        items = items[0]
+                    return {"diurnalProfile": items}
 
-                items =  [{"id": key,"data": list_h_and_mean}  for   key, list_h_and_mean   in series.items()]#chave, valor
-                if field_name in fields_without_height_level_dict.keys():
-                    items[0]["id"] =  fields_without_height_level_dict[field_name]
-                    items = items[0]
-                return { "diurnalProfile" : items }
-            except LookupError as e:
+                raw_data = await self.repo.get_hourly_mean_over_days(station, SolarimetricStationData, resolved_field_name, start_datetime, end_datetime)
+                items = [{
+                    "x": int(row.hour),
+                    "y": float(row.avg),
+                } for row in raw_data]
+                return {"diurnalProfile": {"id": station.name, "data": items}}
+            except LookupError:
                 raise 
-            except ValueError as e:
+            except ValueError:
                 raise
             except Exception as e:
                 raise Exception(f"Erro ao calcular Perfil diurno: {str(e)}")
@@ -477,21 +759,35 @@ class PlatformService:
 
     async def delete_qualified_data_between_datetimes(self, platform_id, start_datetime, end_datetime):
         try:
-            platform:Platform = await self.getPlatform(id=platform_id)
-            await self.repo.delete_qualified_data_between_datetimes(platform, start_datetime, end_datetime)
-        except LookupError as e:
+            station: DataStation = await self.get_data_station(id=platform_id)
+            self.require_station_type(station, DataStationType.lidar)
+            await self.repo.delete_qualified_data_between_datetimes(station, start_datetime, end_datetime)
+        except LookupError:
             raise 
-        except ValueError as e:
+        except ValueError:
             raise
         except Exception as e:
             raise Exception(f"Erro ao excluir dados entre datas: {str(e)}")
 
 
-    async def valide_date_and_create_datetime(self, platform_id, start_datetime = None, end_datetime = None):
+    async def delete_solarimetric_data_between_datetimes(self, station_id, start_datetime, end_datetime):
+        try:
+            station: DataStation = await self.get_data_station(id=station_id)
+            self.require_station_type(station, DataStationType.solarimetric)
+            await self.repo.delete_solarimetric_data_between_datetimes(station, start_datetime, end_datetime)
+        except LookupError:
+            raise
+        except ValueError:
+            raise
+        except Exception as e:
+            raise Exception(f"Erro ao excluir dados solarimétricos entre datas: {str(e)}")
+
+
+    async def valide_date_and_create_datetime(self, station: DataStation, data_model, start_datetime = None, end_datetime = None):
         if start_datetime is None and end_datetime is None:
-            last_date = await self.repo.get_last_date(platform_id)
+            last_date = await self.repo.get_last_date(station.id, data_model)
             if not last_date:
-                raise LookupError("Nenhuma dado encontrado para a plataforma.")
+                raise LookupError("Nenhum dado encontrado para a estação.")
             start_datetime, end_datetime = self.fist_and_laster_data_month(last_date)
         elif start_datetime is not None and end_datetime is not None:
             if start_datetime > end_datetime:
@@ -502,11 +798,49 @@ class PlatformService:
 def get_height_in_df_by_columns(df: pd.DataFrame):
     heights = []
     for col in df.columns:
-        if "Wind Direction (deg) at" in col or "Horizontal Wind Speed (m/s) at" in col:
-            num = int("".join(filter(str.isdigit, col)))
-            if num not in heights:
-                heights.append(num)
+        parsed_height = parse_lidar_height_from_column(col)
+        if parsed_height is not None and parsed_height not in heights:
+            heights.append(parsed_height)
     return heights
+
+
+def parse_lidar_height_from_column(column_name: str) -> int | None:
+    match = LIDAR_HEIGHT_PATTERN.search(str(column_name))
+    if match is None:
+        return None
+
+    raw_height = match.group(1).replace(",", ".")
+    height_value = float(raw_height)
+    if not height_value.is_integer():
+        raise ValueError(
+            f"A altura '{column_name}' não é inteira e não pode ser persistida no formato atual."
+        )
+    return int(height_value)
+
+
+def dedupe_lidar_batch_rows(list_data: list[dict], station_name: str, path_file: str) -> list[dict]:
+    unique_rows: dict[tuple[object, object, object], dict] = {}
+    duplicate_keys: list[tuple[object, object, object]] = []
+
+    for row in list_data:
+        key = (row["dt"], row["station_id"], row["height"])
+        if key in unique_rows:
+            duplicate_keys.append(key)
+        unique_rows[key] = row
+
+    if duplicate_keys:
+        preview_keys = ", ".join(
+            f"({dt}, {height})" for dt, _, height in duplicate_keys[:5]
+        )
+        logger.warning(
+            "[IMPORT][DUPLICATE-BATCH] %s: %s chaves duplicadas geradas ao processar %s. Exemplos: %s",
+            station_name,
+            len(duplicate_keys),
+            path_file,
+            preview_keys,
+        )
+
+    return list(unique_rows.values())
 
 
 def mean_wind_direction(series):

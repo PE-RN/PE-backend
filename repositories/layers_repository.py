@@ -81,8 +81,9 @@ class LayersRepository:
 
         # Remove ocorrências nos arquivos JSON de estilos e popups
         json_files = [
-            Path("assets/public/jsons/layer_style.json"),
+            Path("assets/public/jsons/layers_style.json"),
             Path("assets/public/jsons/popups_fields.json"),
+            Path("assets/public/jsons/graphs.json"),
         ]
 
         for json_file in json_files:

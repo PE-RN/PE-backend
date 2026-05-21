@@ -261,7 +261,7 @@ class AdminAnalyticsTracker:
         if path.startswith("/layer"):
             return self._build_layer_event(status=status, status_code=status_code, payload=payload)
 
-        if path.startswith("/platform") or path.startswith("/qualified_data") or path.startswith("/time-series") or path.startswith("/wind-rose") or path.startswith("/vertical-profile") or path.startswith("/diurnal-profile"):
+        if path.startswith("/data-station") or path.startswith("/lidar") or path.startswith("/solarimetric-stations") or path.startswith("/time-series") or path.startswith("/wind-rose") or path.startswith("/vertical-profile") or path.startswith("/diurnal-profile"):
             return self._build_platform_event(status=status, status_code=status_code, payload=payload)
 
         return None
@@ -487,14 +487,14 @@ class AdminAnalyticsTracker:
         status_code: int,
         payload: dict[str, object],
     ) -> dict[str, Any]:
-        platform_id = self.request.path_params.get("id")
+        station_id = self.request.path_params.get("id")
         if self.request.method == "GET":
             return self._event(
                 domain="map-usage",
                 event_type="view",
                 label=self._label_for_map_path(self.route_path),
-                target_type="platform",
-                target_id=self._stringify(platform_id),
+                target_type="data-station",
+                target_id=self._stringify(station_id),
                 status=status,
                 status_code=status_code,
                 payload=payload,
@@ -504,8 +504,8 @@ class AdminAnalyticsTracker:
             domain="admin-operations",
             event_type=self._event_type_for_method(),
             label=self._label_for_admin_path(self.route_path),
-            target_type="platform",
-            target_id=self._stringify(platform_id),
+            target_type="data-station",
+            target_id=self._stringify(station_id),
             status=status,
             status_code=status_code,
             payload=payload,
@@ -567,8 +567,8 @@ class AdminAnalyticsTracker:
             return "Administracao de grupos e permissoes"
         if path.startswith("/layer"):
             return "Administracao de camadas"
-        if path.startswith("/platform") or path.startswith("/qualified_data"):
-            return "Administracao de plataformas"
+        if path.startswith("/data-station") or path.startswith("/lidar") or path.startswith("/solarimetric-stations"):
+            return "Administracao de estacoes"
         if path.startswith("/geofiles") or path.startswith("/raster"):
             return "Administracao de dados geoespaciais"
         return "Operacao administrativa"
@@ -584,16 +584,20 @@ class AdminAnalyticsTracker:
             return "Consulta de camada geoespacial"
         if path.startswith("/layer"):
             return "Consulta de camada"
-        if path.startswith("/platform"):
-            return "Consulta de plataforma"
+        if path.startswith("/data-station"):
+            return "Consulta de estacao"
         if path.startswith("/time-series"):
-            return "Serie temporal de plataforma"
+            return "Serie temporal de estacao"
         if path.startswith("/wind-rose"):
             return "Rosa dos ventos"
         if path.startswith("/vertical-profile"):
             return "Perfil vertical"
         if path.startswith("/diurnal-profile"):
             return "Perfil diurno"
+        if path.startswith("/lidar"):
+            return "Consulta de dados lidar"
+        if path.startswith("/solarimetric-stations"):
+            return "Consulta de dados solarimetricos"
         return "Consulta de mapa"
 
     @staticmethod
