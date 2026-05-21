@@ -12,17 +12,14 @@ from sqlmodel import SQLModel
 # access to the values within the .ini file in use.
 config = context.config
 
+DEFAULT_SYNC_DATABASE_URL = "postgresql+psycopg2://postgres:postgres@postgresql:5432/atlas"
+
 def get_alembic_database_url() -> str:
     database_url = getenv("SYNC_DATABASE_URL")
-    if database_url:
+    if database_url and database_url.strip():
         return database_url
 
-    render_database_url = getattr(database_url, "render_as_string", None)
-    if callable(render_database_url):
-        return render_database_url(hide_password=False)
-
-    if database_url:
-        return str(database_url)
+    return DEFAULT_SYNC_DATABASE_URL
 
 
 ALEMBIC_DATABASE_URL = get_alembic_database_url()
