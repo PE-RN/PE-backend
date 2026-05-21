@@ -55,7 +55,6 @@ def anyio_backend():
 @pytest.fixture(scope="session", autouse=True)
 def apply_test_migrations():
     config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", TEST_SYNC_DATABASE_URL)
     command.upgrade(config, "head")
 
     sync_engine = create_engine(TEST_SYNC_DATABASE_URL)

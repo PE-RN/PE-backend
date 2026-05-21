@@ -1,55 +1,38 @@
 from os import getenv
 from logging.config import fileConfig
 
-from dotenv import find_dotenv, load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy import pool
-from sqlalchemy.engine import URL, make_url
 
 from alembic import context
 
 from sqlmodel import SQLModel
-from sql_app.models import GroupPermissionLink, Group, Permission, TemporaryUser, User, AnonymousUser, LogsEmail, PdfFile, Video, Feedback, Geodata, GeoJsonData, PasswordResetToken
+
+from settings import SYNC_DATABASE_URL
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
-
-def _load_environment() -> None:
-    dotenv_path = find_dotenv(usecwd=True)
-    if not dotenv_path:
-        return
-
-    try:
-        load_dotenv(dotenv_path)
-    except UnicodeDecodeError:
-        # Some local Windows setups still persist .env files in ANSI/latin-1.
-        load_dotenv(dotenv_path, encoding="latin-1")
+DEFAULT_SYNC_DATABASE_URL = "postgresql+psycopg2://postgres:postgres@postgresql:5432/atlas"
 
 
-def _resolve_sync_database_url() -> URL:
-    raw_url = (
-        getenv("SYNC_DATABASE_URL")
-        or getenv("DATABASE_URL")
-        or "postgresql+psycopg2://postgres:postgres@postgresql:5432/atlas"
-    )
-    url = make_url(str(raw_url))
+def get_alembic_database_url() -> str:
+    database_url = getenv("SYNC_DATABASE_URL")
+    if database_url:
+        return database_url
 
-    drivername = url.drivername
-    if drivername in {"postgres", "postgresql"}:
-        return url.set(drivername="postgresql+psycopg2")
+    render_database_url = getattr(SYNC_DATABASE_URL, "render_as_string", None)
+    if callable(render_database_url):
+        return render_database_url(hide_password=False)
 
-    if drivername.startswith("postgresql+") and drivername != "postgresql+psycopg2":
-        return url.set(drivername="postgresql+psycopg2")
+    if SYNC_DATABASE_URL:
+        return str(SYNC_DATABASE_URL)
 
-    return url
+    return DEFAULT_SYNC_DATABASE_URL
 
 
-_load_environment()
-SYNC_DATABASE_URL = _resolve_sync_database_url()
-config.set_main_option("sqlalchemy.url", SYNC_DATABASE_URL.render_as_string(hide_password=False))
-
+ALEMBIC_DATABASE_URL = get_alembic_database_url()
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:
@@ -79,9 +62,8 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
     context.configure(
-        url=url,
+        url=ALEMBIC_DATABASE_URL,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -98,7 +80,7 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    connectable = create_engine(SYNC_DATABASE_URL, poolclass=pool.NullPool)
+    connectable = create_engine(ALEMBIC_DATABASE_URL, poolclass=pool.NullPool)
 
     with connectable.connect() as connection:
         context.configure(
