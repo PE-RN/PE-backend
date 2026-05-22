@@ -336,6 +336,10 @@ class AuthController:
         content = HtmlGenerator().get_password_reset_link(
             reset_link=reset_link,
             user_email=to_email,
+            contact_link=build_frontend_url("pages/contact/contact.html"),
+            img_logo_cid='logo',
+            img_isi_er_cid='isi',
+            img_state_cid='estado',
         )
         return EmailMessage.with_default_logo_images(
             to_email=to_email,

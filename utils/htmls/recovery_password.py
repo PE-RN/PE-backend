@@ -102,6 +102,101 @@ def style():
         """
 
 
+def reset_password_link_email(
+    user_email,
+    reset_link,
+    style,
+    img_isi_er_cid,
+    img_state_cid,
+    img_logo_cid,
+    contact_link,
+):
+
+    return f"""
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Redefinição de senha</title>
+    {style}
+    </head>
+
+    <body>
+        <table align="center" class="container">
+            <tr>
+                <td>
+                    <table>
+                        <tr>
+                            <td>
+                                <div class="nav">
+                                    <div class="logo">
+                                        <img src="cid:{img_logo_cid}" alt="#">
+                                    </div>
+                                </div>
+                                <div class="content">
+                                    <h1>Redefinição de senha</h1>
+                                    <p>
+                                        Olá, {user_email},
+                                        <br>
+                                        <br>
+                                        Recebemos uma solicitação para redefinir a senha da sua conta na
+                                        <strong>Plataforma de Energias do RN</strong>.
+                                        <br>
+                                        <br>
+                                        Para criar uma nova senha, clique no botão abaixo. Este link é válido por
+                                        <strong>1 hora</strong>.
+                                    </p>
+                                </div>
+
+                                <div class="btn">
+                                    <a target="_blank" href="{reset_link}">Redefinir minha senha</a>
+                                </div>
+
+                                <div class="content">
+                                    <p>
+                                        Se você não solicitou essa alteração, ignore este e-mail. Sua senha atual continuará válida.
+                                        <br>
+                                        <br>
+                                        Por segurança, não compartilhe este link com ninguém.
+                                        <br>
+                                        <br>
+                                        Atenciosamente,
+                                        <br>
+                                        <br>
+                                        <strong>Plataforma de Energias do Rio Grande do Norte</strong>
+                                    </p>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="footer">
+                                <p>
+                                    Por favor, não responda a este e-mail,
+                                    pois é uma mensagem automática e não é possível dar continuidade
+                                    ao seu atendimento por este canal.
+                                    <br>
+                                    <br>
+                                    Se tiver alguma dúvida, acesse o menu <a href="{contact_link}">Contato</a> diretamente na Plataforma.
+                                </p>
+                                <footer>
+                                    <img src="cid:{img_state_cid}" width="140px"
+                                    alt="Logotipo do Governo do Rio Grande do Norte e da Secretaria de Estado do Desenvolvimento Econômico (SEDEC)">
+                                    <img src="cid:{img_isi_er_cid}" width="180px"
+                                    alt="Logotipo do Instituto SENAI de Inovação em Energias Renováveis (ISI-ER)">
+                                </footer>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+
+    </html>
+    """
+
+
 def recovery_password(user_email, new_password, style, enter_link, img_isi_er_cid, img_state_cid, img_logo_cid, contact_link, reset_password_link):
 
     return f"""
