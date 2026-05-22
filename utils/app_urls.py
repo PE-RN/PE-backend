@@ -1,7 +1,7 @@
 from os import getenv
 
 
-DEPLOYED_ENVIRONMENTS = {"development", "production"}
+LOCAL_ENVIRONMENTS = {"local", "localhost"}
 
 
 def _normalize_base_url(url: str) -> str:
@@ -15,10 +15,11 @@ def _get_env_value(name: str, default: str) -> str:
 
 
 def get_environment_name() -> str:
-    environment = getenv("ENVIRONMENT", "local").strip().lower()
-    if environment in DEPLOYED_ENVIRONMENTS:
-        return environment
-    return "local"
+    return getenv("ENVIRONMENT", "local").strip().lower() or "local"
+
+
+def is_local_environment() -> bool:
+    return get_environment_name() in LOCAL_ENVIRONMENTS
 
 
 def _build_url(scheme: str, host: str, port: str | None = None) -> str:
@@ -27,14 +28,18 @@ def _build_url(scheme: str, host: str, port: str | None = None) -> str:
 
 
 def get_backend_public_base_url() -> str:
-    if get_environment_name() == "local":
+    configured_url = getenv("HOST_URL", "").strip()
+
+    if not is_local_environment() and configured_url:
+        return _normalize_base_url(configured_url)
+
+    if is_local_environment():
         return _build_url(
             scheme=_get_env_value("LOCAL_API_SCHEME", "http"),
             host=_get_env_value("LOCAL_API_HOST", "localhost"),
             port=_get_env_value("LOCAL_API_PORT", getenv("PORT", "5010") or "5010"),
         )
 
-    configured_url = getenv("HOST_URL", "").strip()
     if configured_url:
         return _normalize_base_url(configured_url)
 
@@ -50,7 +55,7 @@ def get_frontend_public_base_url() -> str:
     if configured_url:
         return _normalize_base_url(configured_url)
 
-    if get_environment_name() == "local":
+    if is_local_environment():
         return _build_url(
             scheme=_get_env_value("FRONT_SCHEME", "http"),
             host=_get_env_value("LOCAL_FRONT_HOST", "localhost"),
