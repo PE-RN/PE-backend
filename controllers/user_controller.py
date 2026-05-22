@@ -11,10 +11,9 @@ from repositories.user_repository import UserRepository
 from schemas.user import UserCreate
 from schemas.email import EmailMessage
 from services.email_service import EmailService
-from sql_app.database import get_db
+from sql_app.database import SessionLocal, get_db
 from sql_app.models import TemporaryUser
 from sql_app.models import User
-from asyncer import syncify
 from utils.app_urls import build_backend_url, build_frontend_url
 from utils.html_generator import HtmlGenerator
 import bcrypt
@@ -94,25 +93,43 @@ class UserController:
 
         return EmailMessage.with_default_logo_images(html_content=content, subject="Confirmação de email Plataforma de Energias do RN", to_email=to_email)
 
-    def _send_email_account_confirmation_wrapper(self, email_message: EmailMessage, temporary_user: TemporaryUser):
+    async def _create_log_email(
+        self,
+        *,
+        content: str,
+        subject: str,
+        to_email: str,
+        has_error: bool,
+        error_message: str | None,
+    ) -> None:
+        async with SessionLocal() as db:
+            repository = UserRepository(db=db)
+            await repository.create_log_email(
+                subject=subject,
+                content=content,
+                to=to_email,
+                sender=getenv('EMAIL_SMTP'),
+                has_error=has_error,
+                error_message=error_message,
+            )
+
+    async def _send_email_account_confirmation_wrapper(self, email_message: EmailMessage, temporary_user: TemporaryUser):
 
         try:
             self.email_service.send_email_account_confirmation(email_message)
-            syncify(async_function=self.repository.create_log_email)(
+            await self._create_log_email(
                 subject=email_message.subject,
                 content=email_message.html_content,
-                to=email_message.to_email,
-                sender=getenv('EMAIL_SMTP'),
+                to_email=email_message.to_email,
                 has_error=False,
                 error_message=None
             )
         except Exception as e:
             capture_exception(e)
-            syncify(async_function=self.repository.create_log_email)(
+            await self._create_log_email(
                 subject=email_message.subject,
                 content=email_message.html_content,
-                to=email_message.to_email,
-                sender=getenv('EMAIL_SMTP'),
+                to_email=email_message.to_email,
                 has_error=True,
                 error_message=str(e)
             )
