@@ -297,14 +297,14 @@ class AuthController:
         if not token:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Token inválido ou expirado.",
+                detail="Token inválido ou expirado, ou senha já foi resetada com este token. Solicite um novo link de recuperação de senha.",
             )
 
         user = await self.repository.get_user_by_id(token.user_id)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Token inválido ou expirado.",
+                detail="Token inválido ou expirado, ou senha já foi resetada com este token. Solicite um novo link de recuperação de senha.",
             )
 
         user.password = self._hash_password(new_password)
