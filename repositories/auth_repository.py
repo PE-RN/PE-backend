@@ -1,11 +1,12 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from enums.group_enum import GroupNameEnum
 from sql_app import models
 
 class AuthRepository:
@@ -14,13 +15,33 @@ class AuthRepository:
 
         self.db = db
 
-    async def create_user_from_temporary(self, temporary_user: models.TemporaryUser):
+    async def create_user_from_temporary(
+        self,
+        temporary_user: models.TemporaryUser,
+        group_id: UUID | None = None,
+    ):
 
-        user = models.User(**temporary_user.model_dump(exclude_defaults=True))
+        user_payload = temporary_user.model_dump(exclude_defaults=True)
+        if group_id is not None:
+            user_payload["group_id"] = group_id
+
+        user = models.User(**user_payload)
         self.db.add(user)
         await self.db.commit()
         await self.db.refresh(user)
         return user
+
+    async def get_group_by_name(self, group_name: str) -> models.Group | None:
+
+        statement = select(models.Group).where(
+            func.lower(models.Group.name) == group_name.lower()
+        ).fetch(1)
+        groups = await self.db.exec(statement)
+        return groups.first()
+
+    async def get_authenticated_group(self) -> models.Group | None:
+
+        return await self.get_group_by_name(GroupNameEnum.AUTHENTICATED.value)
 
     async def delete_temporary_user(self, temporary_user: models.TemporaryUser):
 

@@ -15,6 +15,7 @@ from sql_app.database import get_db
 from sql_app.models import TemporaryUser
 from sql_app.models import User
 from asyncer import syncify
+from utils.app_urls import build_backend_url, build_frontend_url
 from utils.html_generator import HtmlGenerator
 import bcrypt
 
@@ -68,7 +69,7 @@ class UserController:
         temporary_user = await self.repository.create_temporary_user(user)
         email_message = self._create_confirmation_account_email_message(
             user.email,
-            f"{getenv('HOST_URL')}confirm-email/{temporary_user.id}",
+            build_backend_url(f"confirm-email/{temporary_user.id}"),
         )
 
         self.background_tasks.add_task(
@@ -88,7 +89,7 @@ class UserController:
             img_isi_er_cid="isi",
             img_state_cid="estado",
             user_email=to_email,
-            contact_link=f"{getenv('FRONT_URL')}pages/contact/contact.html",
+            contact_link=build_frontend_url("pages/contact/contact.html"),
             confirmation_email_link=link_url)
 
         return EmailMessage.with_default_logo_images(html_content=content, subject="Confirmação de email Plataforma de Energias do RN", to_email=to_email)

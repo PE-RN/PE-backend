@@ -1,3 +1,4 @@
+import uuid as py_uuid
 from typing import Sequence, Union
 
 from alembic import op
@@ -10,6 +11,21 @@ revision: str = 'b630dcf00361'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
+
+
+DEFAULT_GROUPS_TABLE = sa.table(
+    'Groups',
+    sa.column('id', sa.UUID()),
+    sa.column('name', sa.String()),
+    sa.column('description', sa.String()),
+)
+DEFAULT_GROUPS = (
+    ('anonymous', 'Usuarios anonimos'),
+    ('test', 'Usuarios de teste'),
+    ('authenticated', 'Usuarios autenticados'),
+    ('developer', 'Desenvolvedores'),
+    ('admin', 'Administradores'),
+)
 
 
 def upgrade() -> None:
@@ -62,6 +78,17 @@ def upgrade() -> None:
     sa.UniqueConstraint('id')
     )
     op.create_index(op.f('ix_Groups_name'), 'Groups', ['name'], unique=False)
+    op.bulk_insert(
+        DEFAULT_GROUPS_TABLE,
+        [
+            {
+                'id': py_uuid.uuid4(),
+                'name': name,
+                'description': description,
+            }
+            for name, description in DEFAULT_GROUPS
+        ],
+    )
     op.create_table('Logs_Email',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('created_at', postgresql.TIMESTAMP(), nullable=True),

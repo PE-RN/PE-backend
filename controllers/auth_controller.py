@@ -23,6 +23,7 @@ from sql_app.database import get_db
 from sql_app.models import User
 from sql_app.models import TemporaryUser
 from asyncer import syncify
+from utils.app_urls import build_backend_url, build_frontend_url
 from utils.html_generator import HtmlGenerator
 
 
@@ -131,7 +132,7 @@ class AuthController:
             if temporary_user:
                 email_message = self._create_confirmation_account_email_message(
                     temporary_user.email,
-                    f"{getenv('HOST_URL')}confirm-email/{temporary_user.id}",
+                    build_backend_url(f"confirm-email/{temporary_user.id}"),
                 )
 
                 self.background_tasks.add_task(
@@ -167,7 +168,9 @@ class AuthController:
         if not temporary_user:
             # Redirect with an error message if the user is not a temporary user
             return RedirectResponse(
-                url=f"{getenv('FRONT_URL')}pages/login/login.html?error=Usuário não encontrado!",
+                url=build_frontend_url(
+                    "pages/login/login.html?error=Usuário não encontrado!"
+                ),
                 status_code=status.HTTP_302_FOUND
             )
 
@@ -176,12 +179,25 @@ class AuthController:
             # User already exists, raise an exception or handle as needed
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Usuário já confirmado!")
 
+        authenticated_group = await self.repository.get_authenticated_group()
+        if authenticated_group is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Grupo padrão de usuários não encontrado.",
+            )
+
         # Proceed to create user from temporary and delete temporary record
-        await self.repository.create_user_from_temporary(temporary_user)
+        await self.repository.create_user_from_temporary(
+            temporary_user,
+            group_id=authenticated_group.id,
+        )
         await self.repository.delete_temporary_user(temporary_user)
 
         # Redirect to login page normally
-        return RedirectResponse(url=f"{getenv('FRONT_URL')}pages/login/login.html?alert=Cadastro confirmado!!", status_code=status.HTTP_302_FOUND)
+        return RedirectResponse(
+            url=build_frontend_url("pages/login/login.html?alert=Cadastro confirmado!!"),
+            status_code=status.HTTP_302_FOUND,
+        )
 
     async def validate_and_get_email_from_refresh_token(self, token: str) -> str:
 
@@ -263,9 +279,8 @@ class AuthController:
             expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
             await self.repository.create_password_reset_token(user_id, token_hash, expires_at)
 
-            reset_link = (
-                f"{getenv('FRONT_URL')}pages/reset-password/reset-password.html"
-                f"?token={raw_token}"
+            reset_link = build_frontend_url(
+                f"pages/reset-password/reset-password.html?token={raw_token}"
             )
             email_message = self._create_reset_link_email_message(reset_link, recipient_email)
             self.background_tasks.add_task(
@@ -362,7 +377,7 @@ class AuthController:
             img_isi_er_cid="isi",
             img_state_cid="estado",
             user_email=to_email,
-            contact_link=f"{getenv('FRONT_URL')}pages/contact/contact.html",
+            contact_link=build_frontend_url("pages/contact/contact.html"),
             confirmation_email_link=link_url)
 
         return EmailMessage.with_default_logo_images(html_content=content, subject="Confirmação de email Plataforma de Energias do RN", to_email=to_email)
