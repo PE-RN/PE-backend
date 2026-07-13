@@ -4,6 +4,7 @@ from typing_extensions import TypedDict
 
 class LayerGroupCreate(BaseModel):
     name: str
+    position: int = 0
     layer_group_id: str | None = None
 
 class LayerCreate(BaseModel):

@@ -18,6 +18,7 @@ class LayerGroups(SQLModel, table=True):
     deleted_at: datetime = Field(sa_column=Column(pg.TIMESTAMP, default=None, nullable=True))
 
     name: str = Field(index=True)
+    position: int = Field(default=0, nullable=False)
     layer_group_id: UUID | None = Field(
         default=None, foreign_key="layer_group.id"
     )

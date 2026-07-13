@@ -170,7 +170,11 @@ class LayersRepository:
         return layer_group.first()
 
     async def get_layer_group(self):
-        statement = select(models.LayerGroups).where(models.LayerGroups.deleted_at.is_(None))
+        statement = (
+            select(models.LayerGroups)
+            .where(models.LayerGroups.deleted_at.is_(None))
+            .order_by(models.LayerGroups.position, models.LayerGroups.name)
+        )
         layer_groups = await self.db.exec(statement)
         return layer_groups.all() 
     
@@ -186,7 +190,11 @@ class LayersRepository:
 
     async def get_all_groups_and_layers(self):
     # Buscar todos os grupos
-        groups_stmt = select(models.LayerGroups).where(models.LayerGroups.deleted_at.is_(None))
+        groups_stmt = (
+            select(models.LayerGroups)
+            .where(models.LayerGroups.deleted_at.is_(None))
+            .order_by(models.LayerGroups.position, models.LayerGroups.name)
+        )
         layers_stmt = select(models.Layer).where(models.Layer.deleted_at.is_(None))
 
         result_groups = await self.db.exec(groups_stmt)
@@ -217,6 +225,7 @@ class LayersRepository:
             return {
                 "id": str(group.id),
                 "name": group.name,
+                "position": group.position,
                 "layers": layers_by_group.get(group.id, []),
                 "subgroups": [
                     build_group_tree(child) for child in subgroups_by_parent.get(group.id, [])
