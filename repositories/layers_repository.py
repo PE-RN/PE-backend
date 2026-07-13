@@ -3,7 +3,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from sql_app import models
 from sqlalchemy.orm import selectinload
 from sqlalchemy import text
-from schemas.layers import LayerGroupCreate, LayerCreate
+from schemas.layers import LayerGroupCreate, LayerCreate, LayerUpdate
 from sqlmodel import select, delete
 from pathlib import Path
 import datetime
@@ -155,6 +155,20 @@ class LayersRepository:
         for key, value in layer.model_dump().items():
             setattr(existing_layer, key, value)
 
+        await self.db.commit()
+        await self.db.refresh(existing_layer)
+        return existing_layer
+
+    async def patch_layer(self, layer: LayerUpdate, id: str):
+        existing_layer = await self.get_layer_by_id(id)
+
+        if not existing_layer:
+            raise HTTPException(status_code=404, detail="Camada não encontrada")
+
+        for key, value in layer.model_dump(exclude_unset=True).items():
+            setattr(existing_layer, key, value)
+
+        existing_layer.updated_at = datetime.datetime.now()
         await self.db.commit()
         await self.db.refresh(existing_layer)
         return existing_layer

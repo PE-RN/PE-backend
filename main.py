@@ -44,7 +44,7 @@ from schemas.admin_analytics import (
     AdminAnalyticsSystemHealthQuery,
     AdminAnalyticsUserActivityQuery,
 )
-from schemas.layers import LayerGroupCreate, LayerCreate
+from schemas.layers import LayerGroupCreate, LayerCreate, LayerUpdate
 from schemas.feature import Feature
 from schemas.featureCollection import FeatureCollection
 from schemas.feedback import FeedbackCreate
@@ -838,6 +838,24 @@ async def update_layer(
     result = await controller.update_layer(media_data, file, file_icon, id)
     _bind_layer_event_context(request, result)
     return result
+
+@app.patch(
+    "/layer/{id}",
+    response_model=models.Layer,
+    response_model_exclude={"created_at", "updated_at", "deleted_at"},
+    status_code=status.HTTP_200_OK,
+)
+async def patch_layer(
+    id: str,
+    layer: LayerUpdate,
+    controller: Annotated[LayersController, Depends(LayersController.inject_controller)],
+    user: Annotated[models.User | models.AnonymousUser, Depends(AuthController.get_user_from_token)],
+    has_permission: Annotated[bool, Depends(AuthController.get_permission_dependency("layer_admin"))],
+):
+    if not has_permission:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não possui permissão.")
+
+    return await controller.patch_layer(layer, id)
 
 @app.get(
     "/layer-group",

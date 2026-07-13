@@ -14,3 +14,10 @@ class LayerCreate(BaseModel):
     subtitle: str | None = None
     activated: bool = False
     layer_group_id: str
+
+
+class LayerUpdate(BaseModel):
+    name: str | None = None
+    subtitle: str | None = None
+    activated: bool | None = None
+    layer_group_id: str | None = None

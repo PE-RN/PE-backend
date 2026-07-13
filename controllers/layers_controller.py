@@ -3,7 +3,7 @@ from repositories.layers_repository import LayersRepository
 from typing import Annotated
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from schemas.layers import LayerCreate,LayerGroupCreate
+from schemas.layers import LayerCreate, LayerGroupCreate, LayerUpdate
 from pathlib import Path
 from fastapi import Depends, HTTPException, status, UploadFile
 from sql_app.database import get_db
@@ -106,6 +106,9 @@ class LayersController:
         await self.create_layer_files(layer, file, file_icon)
 
         return await self.repository.update_layer(layer, id)
+
+    async def patch_layer(self, layer: LayerUpdate, id: str):
+        return await self.repository.patch_layer(layer, id)
     
     async def create_layer_popup(self, id: str, fields: dict):
         layer = await self.repository.get_layer_by_id(id)
